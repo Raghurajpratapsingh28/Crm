@@ -1,5 +1,6 @@
 node_modules
 dist
+business/
 .next
 .turbo
 .env
@@ -9,4 +10,3 @@ dist
 apps/api/generated
 apps/worker/bin
 coverage
-README.md

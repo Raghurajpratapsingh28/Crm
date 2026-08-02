@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-import { env } from "./env.js";
+import { env } from "../config/env.js";
 
 export interface SupabaseJwt extends JWTPayload {
   sub: string;

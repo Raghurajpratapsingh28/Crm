@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { verifySupabaseJwt } from "../lib/supabase.js";
 import { prisma } from "../lib/prisma.js";
+import { verifySupabaseJwt } from "../lib/supabase.js";
+import { AppError } from "../utils/errors.js";
 
 export interface AuthedRequest extends Request {
   supabaseUserId?: string;
@@ -8,14 +9,10 @@ export interface AuthedRequest extends Request {
   userId?: string;
 }
 
-export async function requireAuth(
-  req: AuthedRequest,
-  res: Response,
-  next: NextFunction,
-) {
+export async function requireAuth(req: AuthedRequest, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "unauthorized", message: "Missing Bearer token" });
+    next(new AppError(401, "unauthorized", "Missing Bearer token"));
     return;
   }
 
@@ -31,6 +28,6 @@ export async function requireAuth(
     req.userId = user?.id;
     next();
   } catch {
-    res.status(401).json({ error: "unauthorized", message: "Invalid or expired token" });
+    next(new AppError(401, "unauthorized", "Invalid or expired token"));
   }
 }

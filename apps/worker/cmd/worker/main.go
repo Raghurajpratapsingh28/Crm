@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"crm/worker/internal/analytics"
 	"crm/worker/internal/config"
@@ -29,7 +30,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+
+	pingCtx, cancelPing := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := db.PingContext(pingCtx); err != nil {
+		cancelPing()
+		_ = db.Close()
+		log.Fatalf("database unavailable: %v", err)
+	}
+	cancelPing()
 
 	registry := jobs.NewRegistry(
 		email.Handler{TypeName: jobs.EmailInvite},
@@ -47,7 +55,15 @@ func main() {
 	defer stop()
 
 	log.Printf("worker %s polling every %s", cfg.WorkerID, cfg.PollInterval)
-	if err := jobs.Run(ctx, &store.Postgres{DB: db}, registry, cfg.WorkerID, cfg.PollInterval); err != nil && err != context.Canceled {
-		log.Fatal(err)
+	runErr := jobs.Run(ctx, &store.Postgres{DB: db}, registry, cfg.WorkerID, cfg.PollInterval)
+	stop()
+
+	if err := db.Close(); err != nil {
+		log.Printf("close db: %v", err)
 	}
+
+	if runErr != nil {
+		log.Fatal(runErr)
+	}
+	log.Printf("worker stopped")
 }

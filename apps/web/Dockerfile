@@ -3,11 +3,11 @@ RUN corepack enable
 WORKDIR /repo
 
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY apps/web/package.json apps/web/package.json
-RUN pnpm install --filter @crm/web... --frozen-lockfile || pnpm install --filter @crm/web...
+RUN pnpm install --filter @crm/web... --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /repo/node_modules ./node_modules

@@ -1,11 +1,11 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? "http://localhost:4000";
+import { env } from "./env";
 
 export async function apiFetch<T>(
   path: string,
   options: RequestInit & { token?: string; organizationId?: string } = {},
 ): Promise<T> {
   const { token, organizationId, headers, ...rest } = options;
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",

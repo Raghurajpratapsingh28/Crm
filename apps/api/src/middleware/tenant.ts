@@ -1,6 +1,7 @@
-import type { NextFunction, Response } from "express";
 import type { Role } from "@crm/types";
+import type { NextFunction, Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { AppError } from "../utils/errors.js";
 import type { AuthedRequest } from "./auth.js";
 
 export interface TenantRequest extends AuthedRequest {
@@ -8,16 +9,23 @@ export interface TenantRequest extends AuthedRequest {
   role?: Role;
 }
 
-export async function requireTenant(
-  req: TenantRequest,
-  res: Response,
-  next: NextFunction,
-) {
+export async function requireTenant(req: TenantRequest, _res: Response, next: NextFunction) {
+  try {
+    await attachTenant(req, next);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function attachTenant(req: TenantRequest, next: NextFunction) {
   if (!req.userId) {
-    res.status(409).json({
-      error: "user_not_provisioned",
-      message: "No local user for this Supabase account. Complete onboarding first.",
-    });
+    next(
+      new AppError(
+        409,
+        "user_not_provisioned",
+        "No local user for this Supabase account. Complete onboarding first.",
+      ),
+    );
     return;
   }
 
@@ -32,7 +40,7 @@ export async function requireTenant(
   });
 
   if (!membership) {
-    res.status(403).json({ error: "forbidden", message: "No active organization membership" });
+    next(new AppError(403, "forbidden", "No active organization membership"));
     return;
   }
 

@@ -9,12 +9,20 @@
     "dev:worker": "turbo dev --filter=@crm/worker",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @crm/api db:generate",
     "db:migrate": "pnpm --filter @crm/api db:migrate",
     "db:push": "pnpm --filter @crm/api db:push"
   },
   "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
     "turbo": "^2.5.6",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.43.0"
   }
 }

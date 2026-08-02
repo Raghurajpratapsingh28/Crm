@@ -9,10 +9,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "devDependencies": {
     "@crm/tsconfig": "workspace:*",
+    "eslint": "^9.35.0",
     "typescript": "^5.8.3"
   }
 }

@@ -1,11 +1,13 @@
+import type { PaymentProvider } from "@crm/types";
 import type { Prisma } from "@prisma/client";
 import { Router } from "express";
-import type { PaymentProvider } from "@crm/types";
+import { prisma } from "../../lib/prisma.js";
 import { enqueue } from "../../lib/queue.js";
 import { requireAuth } from "../../middleware/auth.js";
-import { requireTenant, type TenantRequest } from "../../middleware/tenant.js";
 import { requireRole } from "../../middleware/permissions.js";
-import { prisma } from "../../lib/prisma.js";
+import { requireTenant, type TenantRequest } from "../../middleware/tenant.js";
+import { asyncHandler } from "../../utils/async-handler.js";
+import { AppError } from "../../utils/errors.js";
 
 export const paymentsRouter: Router = Router();
 
@@ -14,37 +16,41 @@ paymentsRouter.post(
   requireAuth,
   requireTenant,
   requireRole("ADMIN"),
-  async (req: TenantRequest, res) => {
+  asyncHandler(async (req, res) => {
+    const { organizationId } = req as TenantRequest;
     const provider = (req.body as { provider?: PaymentProvider }).provider;
     if (provider !== "RAZORPAY" && provider !== "STRIPE") {
-      res.status(400).json({ error: "invalid", message: "provider must be RAZORPAY or STRIPE" });
-      return;
+      throw new AppError(400, "invalid", "provider must be RAZORPAY or STRIPE");
     }
 
-    // Provider SDK calls live here. The API only creates a checkout session
-    // and stores the intended subscription; the Go worker reconciles webhooks.
     res.status(201).json({
       provider,
-      organizationId: req.organizationId,
+      organizationId,
       checkoutUrl: null,
       message: "Wire Razorpay Orders or Stripe Checkout in lib/razorpay.ts / lib/stripe.ts",
     });
-  },
+  }),
 );
 
-paymentsRouter.post("/webhooks/razorpay", async (req, res) => {
-  // Verify HMAC with RAZORPAY_WEBHOOK_SECRET before persisting.
-  const eventId = String(req.header("x-razorpay-event-id") ?? crypto.randomUUID());
-  await persistAndEnqueue("RAZORPAY", eventId, req.body);
-  res.json({ received: true });
-});
+paymentsRouter.post(
+  "/webhooks/razorpay",
+  asyncHandler(async (req, res) => {
+    const eventId = String(req.header("x-razorpay-event-id") ?? crypto.randomUUID());
+    await persistAndEnqueue("RAZORPAY", eventId, req.body);
+    res.json({ received: true });
+  }),
+);
 
-paymentsRouter.post("/webhooks/stripe", async (req, res) => {
-  // Verify Stripe-Signature before persisting.
-  const eventId = String(req.body?.id ?? crypto.randomUUID());
-  await persistAndEnqueue("STRIPE", eventId, req.body);
-  res.json({ received: true });
-});
+paymentsRouter.post(
+  "/webhooks/stripe",
+  asyncHandler(async (req, res) => {
+    const eventId = String(
+      (req.body as { id?: string } | undefined)?.id ?? crypto.randomUUID(),
+    );
+    await persistAndEnqueue("STRIPE", eventId, req.body);
+    res.json({ received: true });
+  }),
+);
 
 async function persistAndEnqueue(
   provider: PaymentProvider,
@@ -56,7 +62,7 @@ async function persistAndEnqueue(
     create: {
       provider,
       eventId,
-      eventType: String((payload as { type?: string })?.type ?? "unknown"),
+      eventType: String((payload as { type?: string } | null)?.type ?? "unknown"),
       payload: (payload ?? {}) as Prisma.InputJsonValue,
     },
     update: {},

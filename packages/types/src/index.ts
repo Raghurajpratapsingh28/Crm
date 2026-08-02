@@ -12,22 +12,13 @@ export type DealStageName =
   | "Won"
   | "Lost";
 
-export type ActivityType =
-  | "call"
-  | "email"
-  | "meeting"
-  | "note"
-  | "status_change";
+export type ActivityType = "call" | "email" | "meeting" | "note" | "status_change";
 
 export type RelatedType = "contact" | "company" | "deal";
 
 export type PaymentProvider = "RAZORPAY" | "STRIPE";
 
-export type SubscriptionStatus =
-  | "INCOMPLETE"
-  | "ACTIVE"
-  | "PAST_DUE"
-  | "CANCELED";
+export type SubscriptionStatus = "INCOMPLETE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 
 /** Job types the Express API enqueues and the Go worker consumes. */
 export type JobType =
@@ -52,7 +43,8 @@ export interface AuthUser {
   organizationId: string;
 }
 
-export interface ApiError {
+export interface ApiErrorBody {
   error: string;
   message: string;
+  requestId: string;
 }

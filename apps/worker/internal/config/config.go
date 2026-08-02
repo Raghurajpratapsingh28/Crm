@@ -1,9 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"time"
 )
+
+func containsSSLMode(url string) bool {
+	return strings.Contains(strings.ToLower(url), "sslmode=")
+}
 
 type Config struct {
 	DatabaseURL  string
@@ -14,7 +20,16 @@ type Config struct {
 func Load() (Config, error) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		url = "postgresql://crm:crm@localhost:5432/crm?schema=public"
+		if os.Getenv("NODE_ENV") == "production" {
+			return Config{}, fmt.Errorf("DATABASE_URL is required")
+		}
+		url = "postgresql://crm:crm@localhost:5432/crm?sslmode=disable"
+	} else if os.Getenv("NODE_ENV") != "production" && !containsSSLMode(url) {
+		sep := "?"
+		if strings.Contains(url, "?") {
+			sep = "&"
+		}
+		url += sep + "sslmode=disable"
 	}
 
 	id := os.Getenv("WORKER_ID")

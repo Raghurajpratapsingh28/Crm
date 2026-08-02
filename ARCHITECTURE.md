@@ -55,6 +55,11 @@ sequenceDiagram
   W-->>U: kanban
 ```
 
+Process probes:
+
+- `GET /health` — API process is up (Kubernetes liveness). No database call.
+- `GET /ready` — PostgreSQL accepts a ping (Kubernetes readiness).
+
 Hard rules:
 
 1. Every business row has `organization_id`. Middleware sets it; queries do not take it from the body as the only check.
