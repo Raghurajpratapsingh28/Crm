@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint . --ignore-pattern next-env.d.ts --ignore-pattern .next"
   },
   "dependencies": {
     "@crm/types": "workspace:*",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
     "next": "^15.5.3",
     "react": "^19.1.1",

@@ -11,7 +11,9 @@ const envSchema = z.object({
   WEB_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   SUPABASE_JWT_SECRET: z.string().min(1, "SUPABASE_JWT_SECRET is required"),
+  SUPABASE_URL: z.string().optional().default(""),
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional().default(""),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
 });
 
 function parseEnv() {
@@ -26,6 +28,7 @@ function parseEnv() {
 }
 
 const parsed = parseEnv();
+const supabaseUrl = parsed.SUPABASE_URL || parsed.NEXT_PUBLIC_SUPABASE_URL;
 
 export const env = {
   nodeEnv: parsed.NODE_ENV,
@@ -33,7 +36,9 @@ export const env = {
   webUrl: parsed.WEB_URL,
   databaseUrl: parsed.DATABASE_URL,
   supabaseJwtSecret: parsed.SUPABASE_JWT_SECRET,
-  supabaseUrl: parsed.NEXT_PUBLIC_SUPABASE_URL,
+  supabaseUrl,
+  supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY,
 };
 
 export const isDev = env.nodeEnv !== "production";
+export const isTest = env.nodeEnv === "test";

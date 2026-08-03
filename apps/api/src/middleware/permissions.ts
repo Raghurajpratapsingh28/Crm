@@ -1,6 +1,6 @@
 import type { Role } from "@crm/types";
 import type { NextFunction, Response } from "express";
-import { AppError } from "../utils/errors.js";
+import { forbidden } from "../utils/errors.js";
 import type { TenantRequest } from "./tenant.js";
 
 const rank: Record<Role, number> = {
@@ -11,8 +11,9 @@ const rank: Record<Role, number> = {
 
 export function requireRole(...allowed: Role[]) {
   return (req: TenantRequest, _res: Response, next: NextFunction) => {
-    if (!req.role || !allowed.includes(req.role)) {
-      next(new AppError(403, "forbidden", "Insufficient role"));
+    const role = req.tenant?.role ?? req.role;
+    if (!role || !allowed.includes(role)) {
+      next(forbidden("Insufficient role"));
       return;
     }
     next();
@@ -21,8 +22,9 @@ export function requireRole(...allowed: Role[]) {
 
 export function atLeast(min: Role) {
   return (req: TenantRequest, _res: Response, next: NextFunction) => {
-    if (!req.role || rank[req.role] < rank[min]) {
-      next(new AppError(403, "forbidden", "Insufficient role"));
+    const role = req.tenant?.role ?? req.role;
+    if (!role || rank[role] < rank[min]) {
+      next(forbidden("Insufficient role"));
       return;
     }
     next();

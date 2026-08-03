@@ -64,7 +64,7 @@ Hard rules:
 
 1. Every business row has `organization_id`. Middleware sets it; queries do not take it from the body as the only check.
 2. Roles (`ADMIN` / `MANAGER` / `MEMBER`) are enforced in Express, not only in the UI.
-3. No `password_hash` in this database. `users.supabase_user_id` is the link to Supabase.
+3. No `password_hash` in this database. `users.id` is the Supabase `auth.users.id`. See [docs/ERD.md](./docs/ERD.md).
 
 ## Jobs
 

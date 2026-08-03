@@ -57,11 +57,18 @@ async function persistAndEnqueue(
   eventId: string,
   payload: unknown,
 ) {
-  const event = await prisma.webhookEvent.upsert({
-    where: { provider_eventId: { provider, eventId } },
+  const body = payload as { organizationId?: string; organization_id?: string } | null;
+  const organizationId = body?.organizationId ?? body?.organization_id;
+  if (!organizationId) {
+    throw new AppError(400, "invalid", "organizationId is required on payment events");
+  }
+
+  const event = await prisma.paymentEvent.upsert({
+    where: { provider_providerEventId: { provider, providerEventId: eventId } },
     create: {
+      organizationId,
       provider,
-      eventId,
+      providerEventId: eventId,
       eventType: String((payload as { type?: string } | null)?.type ?? "unknown"),
       payload: (payload ?? {}) as Prisma.InputJsonValue,
     },
@@ -69,6 +76,6 @@ async function persistAndEnqueue(
   });
 
   if (!event.processedAt) {
-    await enqueue("payments.reconcile", { webhookEventId: event.id, provider });
+    await enqueue("payments.reconcile", { paymentEventId: event.id, provider });
   }
 }

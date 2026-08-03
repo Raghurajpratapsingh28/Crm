@@ -1,24 +1,42 @@
 import { env } from "./env";
 
-export async function apiFetch<T>(
-  path: string,
-  options: RequestInit & { token?: string; organizationId?: string } = {},
-): Promise<T> {
-  const { token, organizationId, headers, ...rest } = options;
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit & { token?: string } = {}) {
+  const { token, headers, ...rest } = options;
   const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(organizationId ? { "x-organization-id": organizationId } : {}),
       ...headers,
     },
   });
 
+  const body = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: T;
+    error?: { code?: string; message?: string };
+    message?: string;
+  };
+
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `API ${res.status}`);
+    throw new ApiRequestError(
+      res.status,
+      body.error?.code ?? "INTERNAL",
+      body.error?.message ?? body.message ?? `API ${res.status}`,
+    );
   }
 
-  return res.json() as Promise<T>;
+  return (body.data ?? body) as T;
 }

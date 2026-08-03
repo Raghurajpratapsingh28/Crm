@@ -1,10 +1,10 @@
-import type { ApiErrorBody } from "@crm/types";
+import type { ApiErrorBody, ApiErrorCode } from "@crm/types";
 
 export class AppError extends Error {
   readonly status: number;
-  readonly code: string;
+  readonly code: ApiErrorCode | string;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: ApiErrorCode | string, message: string) {
     super(message);
     this.name = "AppError";
     this.status = status;
@@ -12,9 +12,37 @@ export class AppError extends Error {
   }
 }
 
+export function unauthorized(message = "Authentication required") {
+  return new AppError(401, "UNAUTHORIZED", message);
+}
+
+export function forbidden(message = "You do not have access to this organization") {
+  return new AppError(403, "FORBIDDEN", message);
+}
+
+export function invalid(message: string) {
+  return new AppError(400, "INVALID", message);
+}
+
+export function notFound(message = "Not found") {
+  return new AppError(404, "NOT_FOUND", message);
+}
+
 export function toErrorBody(error: AppError | Error, requestId: string): ApiErrorBody {
   if (error instanceof AppError) {
-    return { error: error.code, message: error.message, requestId };
+    return {
+      success: false,
+      error: { code: error.code, message: error.message },
+      requestId,
+    };
   }
-  return { error: "internal", message: "Internal server error", requestId };
+  return {
+    success: false,
+    error: { code: "INTERNAL", message: "Internal server error" },
+    requestId,
+  };
+}
+
+export function ok<T>(data: T) {
+  return { success: true as const, data };
 }

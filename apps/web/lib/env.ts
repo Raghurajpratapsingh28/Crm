@@ -22,3 +22,12 @@ function parseEnv() {
 }
 
 export const env = parseEnv();
+
+export function hasSupabaseConfig() {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return false;
+  if (/your-project|example\.supabase|change-me/i.test(url)) return false;
+  if (/change-me|your-anon-key/i.test(key)) return false;
+  return true;
+}

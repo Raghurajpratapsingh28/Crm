@@ -4,8 +4,8 @@ import { logger } from "../utils/logger.js";
 
 export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({
-    error: "not_found",
-    message: "Route not found",
+    success: false,
+    error: { code: "NOT_FOUND", message: "Route not found" },
     requestId: req.requestId,
   });
 }
@@ -14,7 +14,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   const requestId = req.requestId ?? "unknown";
 
   if (err instanceof AppError) {
-    logger.warn({ err, requestId }, err.message);
+    logger.warn({ err, requestId, code: err.code }, err.message);
     res.status(err.status).json(toErrorBody(err, requestId));
     return;
   }

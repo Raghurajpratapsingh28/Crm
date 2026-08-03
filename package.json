@@ -10,11 +10,15 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
+    "test": "turbo test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @crm/api db:generate",
+    "db:validate": "pnpm --filter @crm/api db:validate",
     "db:migrate": "pnpm --filter @crm/api db:migrate",
-    "db:push": "pnpm --filter @crm/api db:push"
+    "db:migrate:deploy": "pnpm --filter @crm/api db:migrate:deploy",
+    "db:push": "pnpm --filter @crm/api db:push",
+    "db:seed": "pnpm --filter @crm/api db:seed"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",

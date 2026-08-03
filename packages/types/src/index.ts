@@ -12,11 +12,11 @@ export type DealStageName =
   | "Won"
   | "Lost";
 
-export type ActivityType = "call" | "email" | "meeting" | "note" | "status_change";
+export type ActivityType = "CALL" | "EMAIL" | "MEETING" | "NOTE" | "STATUS_CHANGE";
 
-export type RelatedType = "contact" | "company" | "deal";
+export type TaskStatus = "OPEN" | "DONE";
 
-export type PaymentProvider = "RAZORPAY" | "STRIPE";
+export type PaymentProvider = "STRIPE" | "RAZORPAY";
 
 export type SubscriptionStatus = "INCOMPLETE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 
@@ -34,9 +34,16 @@ export type JobType =
 
 export type JobStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
 
+export type ApiErrorCode =
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "INVALID"
+  | "NOT_FOUND"
+  | "INTERNAL";
+
+/** `id` is the Supabase `auth.users.id`. */
 export interface AuthUser {
   id: string;
-  supabaseUserId: string;
   email: string;
   fullName: string;
   role: Role;
@@ -44,7 +51,33 @@ export interface AuthUser {
 }
 
 export interface ApiErrorBody {
-  error: string;
-  message: string;
+  success: false;
+  error: {
+    code: ApiErrorCode | string;
+    message: string;
+  };
   requestId: string;
 }
+
+export interface ApiSuccessBody<T> {
+  success: true;
+  data: T;
+}
+
+export const DEFAULT_PIPELINE_NAME = "Default Sales Pipeline";
+
+export const DEFAULT_PIPELINE_STAGES: ReadonlyArray<{
+  name: DealStageName;
+  order: number;
+  isWon: boolean;
+  isLost: boolean;
+}> = [
+  { name: "Lead", order: 0, isWon: false, isLost: false },
+  { name: "Contacted", order: 1, isWon: false, isLost: false },
+  { name: "Qualified", order: 2, isWon: false, isLost: false },
+  { name: "Meeting", order: 3, isWon: false, isLost: false },
+  { name: "Proposal", order: 4, isWon: false, isLost: false },
+  { name: "Negotiation", order: 5, isWon: false, isLost: false },
+  { name: "Won", order: 6, isWon: true, isLost: false },
+  { name: "Lost", order: 7, isWon: false, isLost: true },
+];

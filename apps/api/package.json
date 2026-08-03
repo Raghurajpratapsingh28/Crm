@@ -8,11 +8,16 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src --ignore-pattern '**/*.test.ts' --ignore-pattern 'src/test/**'",
+    "test": "vitest run",
     "postinstall": "prisma generate",
-    "db:generate": "prisma generate",
+    "db:generate": "node scripts/with-env.mjs prisma generate",
+    "db:validate": "node scripts/with-env.mjs prisma validate",
     "db:migrate": "node scripts/with-env.mjs prisma migrate dev",
+    "db:migrate:deploy": "node scripts/with-env.mjs prisma migrate deploy",
+    "db:reset": "node scripts/with-env.mjs prisma migrate reset --force",
     "db:push": "node scripts/with-env.mjs prisma db push",
+    "db:seed": "node scripts/with-env.mjs tsx prisma/seed.ts",
     "db:studio": "node scripts/with-env.mjs prisma studio"
   },
   "dependencies": {
@@ -32,7 +37,13 @@
     "@types/node": "^22.18.1",
     "eslint": "^9.35.0",
     "prisma": "^6.16.1",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
     "tsx": "^4.20.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

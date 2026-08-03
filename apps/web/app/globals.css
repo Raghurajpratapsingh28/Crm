@@ -83,3 +83,67 @@ p {
   line-height: 1.5;
   color: var(--muted);
 }
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.form input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.form button,
+button.linkish {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button.linkish {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.error {
+  color: #9f1239;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  main {
+    padding: 24px 16px 48px;
+  }
+}

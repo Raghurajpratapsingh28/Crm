@@ -2,7 +2,7 @@
 
 Multi-tenant CRM monorepo: Next.js web, Express API, Prisma/PostgreSQL, Supabase Auth, Go worker. Local Postgres via Docker Compose; production target is Kubernetes.
 
-Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Data model: [`docs/ERD.md`](./docs/ERD.md). Auth: [`docs/AUTH.md`](./docs/AUTH.md). Tenancy: [`docs/TENANCY.md`](./docs/TENANCY.md).
 
 ## Stack
 
@@ -31,7 +31,7 @@ pnpm install
 pnpm db:push
 ```
 
-`pnpm install` generates the Prisma client. Edit `.env` with real Supabase and payment keys before using auth or billing.
+`pnpm install` generates the Prisma client. Edit `.env` with real Supabase keys before signup/login. Never put `SUPABASE_SERVICE_ROLE_KEY` in a `NEXT_PUBLIC_` variable. See [`docs/AUTH.md`](./docs/AUTH.md).
 
 ## Development
 
@@ -58,12 +58,15 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000
 ```bash
 pnpm typecheck
 pnpm lint
+pnpm test
 pnpm format
 pnpm format:check
 pnpm build
+pnpm db:validate
 pnpm db:generate
 pnpm db:migrate
 pnpm db:push
+pnpm db:seed
 ```
 
 Go worker (from repo root):

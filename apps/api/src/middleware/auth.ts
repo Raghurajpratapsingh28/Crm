@@ -1,9 +1,17 @@
 import type { NextFunction, Request, Response } from "express";
-import { prisma } from "../lib/prisma.js";
 import { verifySupabaseJwt } from "../lib/supabase.js";
-import { AppError } from "../utils/errors.js";
+import { upsertLocalUser } from "../modules/users/user.service.js";
+import { unauthorized } from "../utils/errors.js";
+
+export interface AuthContext {
+  userId: string;
+  supabaseUserId: string;
+  email: string;
+  fullName: string;
+}
 
 export interface AuthedRequest extends Request {
+  auth?: AuthContext;
   supabaseUserId?: string;
   supabaseEmail?: string;
   userId?: string;
@@ -11,23 +19,36 @@ export interface AuthedRequest extends Request {
 
 export async function requireAuth(req: AuthedRequest, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    next(new AppError(401, "unauthorized", "Missing Bearer token"));
+  if (!header) {
+    next(unauthorized("Authentication required"));
+    return;
+  }
+
+  const [scheme, token] = header.split(" ");
+  if (scheme !== "Bearer" || !token) {
+    next(unauthorized("Authentication required"));
     return;
   }
 
   try {
-    const claims = await verifySupabaseJwt(header.slice(7));
-    req.supabaseUserId = claims.sub;
-    req.supabaseEmail = claims.email;
+    const claims = await verifySupabaseJwt(token);
+    if (!claims.sub) {
+      next(unauthorized("Authentication required"));
+      return;
+    }
 
-    const user = await prisma.user.findUnique({
-      where: { supabaseUserId: claims.sub },
-      select: { id: true },
-    });
-    req.userId = user?.id;
+    const user = await upsertLocalUser(claims);
+    req.auth = {
+      userId: user.id,
+      supabaseUserId: claims.sub,
+      email: user.email,
+      fullName: user.fullName,
+    };
+    req.userId = user.id;
+    req.supabaseUserId = claims.sub;
+    req.supabaseEmail = user.email;
     next();
   } catch {
-    next(new AppError(401, "unauthorized", "Invalid or expired token"));
+    next(unauthorized("Authentication required"));
   }
 }
