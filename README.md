@@ -2,7 +2,7 @@
 
 Multi-tenant CRM monorepo: Next.js web, Express API, Prisma/PostgreSQL, Supabase Auth, Go worker. Local Postgres via Docker Compose; production target is Kubernetes.
 
-Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Data model: [`docs/ERD.md`](./docs/ERD.md). Auth: [`docs/AUTH.md`](./docs/AUTH.md). Tenancy: [`docs/TENANCY.md`](./docs/TENANCY.md).
+Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Data model: [`docs/ERD.md`](./docs/ERD.md). Auth: [`docs/AUTH.md`](./docs/AUTH.md). Tenancy: [`docs/TENANCY.md`](./docs/TENANCY.md). RBAC: [`docs/RBAC.md`](./docs/RBAC.md). Authorization: [`docs/AUTHORIZATION.md`](./docs/AUTHORIZATION.md).
 
 ## Stack
 
@@ -101,7 +101,9 @@ Kubernetes templates: `deploy/k8s/`. Liveness uses `/health`, readiness uses `/r
 apps/api/src/
   config/        env validation
   modules/       HTTP routes
-  middleware/    auth, tenant, RBAC, request id, logging, errors
+  auth/          permission constants re-export
+  services/      permission, ownership, audit
+  middleware/    auth, tenant, permissions, request id, logging, errors
   lib/           prisma, supabase, queue, payment clients
   utils/         errors, logger, async handler
   app.ts         Express app

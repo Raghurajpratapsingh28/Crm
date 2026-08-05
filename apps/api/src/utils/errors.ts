@@ -16,7 +16,7 @@ export function unauthorized(message = "Authentication required") {
   return new AppError(401, "UNAUTHORIZED", message);
 }
 
-export function forbidden(message = "You do not have access to this organization") {
+export function forbidden(message = "You do not have permission to perform this action") {
   return new AppError(403, "FORBIDDEN", message);
 }
 

@@ -1,30 +1,25 @@
-import type { Role } from "@crm/types";
+import type { Permission } from "@crm/types";
 import type { NextFunction, Response } from "express";
+import { hasPermission } from "../services/permission.service.js";
 import { forbidden } from "../utils/errors.js";
 import type { TenantRequest } from "./tenant.js";
 
-const rank: Record<Role, number> = {
-  MEMBER: 1,
-  MANAGER: 2,
-  ADMIN: 3,
-};
-
-export function requireRole(...allowed: Role[]) {
+export function requirePermission(permission: Permission) {
   return (req: TenantRequest, _res: Response, next: NextFunction) => {
     const role = req.tenant?.role ?? req.role;
-    if (!role || !allowed.includes(role)) {
-      next(forbidden("Insufficient role"));
+    if (!hasPermission(role, permission)) {
+      next(forbidden("You do not have permission to perform this action"));
       return;
     }
     next();
   };
 }
 
-export function atLeast(min: Role) {
+export function requireAnyPermission(...permissions: Permission[]) {
   return (req: TenantRequest, _res: Response, next: NextFunction) => {
     const role = req.tenant?.role ?? req.role;
-    if (!role || rank[role] < rank[min]) {
-      next(forbidden("Insufficient role"));
+    if (!permissions.some((permission) => hasPermission(role, permission))) {
+      next(forbidden("You do not have permission to perform this action"));
       return;
     }
     next();

@@ -10,6 +10,9 @@ if (existsSync(rootEnv)) {
     const eq = trimmed.indexOf("=");
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
+    if (key === "NODE_ENV" || key.startsWith("__NEXT") || key === "NEXT_RUNTIME") {
+      continue;
+    }
     let value = trimmed.slice(eq + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||

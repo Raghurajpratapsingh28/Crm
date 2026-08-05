@@ -1,6 +1,8 @@
+import { PERMISSIONS } from "@crm/types";
 import { Router } from "express";
+import { rejectProtectedFields } from "../../lib/dto.js";
 import { requireAuth, type AuthedRequest } from "../../middleware/auth.js";
-import { requireRole } from "../../middleware/permissions.js";
+import { requirePermission } from "../../middleware/permissions.js";
 import { requireTenant, tenantId, type TenantRequest } from "../../middleware/tenant.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { forbidden, ok } from "../../utils/errors.js";
@@ -32,6 +34,7 @@ organizationsRouter.get(
   "/current",
   requireAuth,
   requireTenant,
+  requirePermission(PERMISSIONS.ORGANIZATION_READ),
   asyncHandler(async (req, res) => {
     const userId = (req as AuthedRequest).auth?.userId;
     if (!userId) throw forbidden();
@@ -56,10 +59,11 @@ organizationsRouter.patch(
   "/current",
   requireAuth,
   requireTenant,
-  requireRole("ADMIN"),
+  requirePermission(PERMISSIONS.ORGANIZATION_UPDATE),
   asyncHandler(async (req, res) => {
     const userId = (req as AuthedRequest).auth?.userId;
     if (!userId) throw forbidden();
+    rejectProtectedFields(req.body);
     const body = req.body as { name?: string; timezone?: string; currency?: string };
     const updated = await updateCurrentOrganization(userId, tenantId(req as TenantRequest), body);
     res.json(ok(updated));

@@ -52,6 +52,21 @@ export async function createUser(emailPrefix = "user") {
   return { id, email, token };
 }
 
+export async function ensureUser(user: { token: string }) {
+  await request(app).get("/api/v1/auth/me").set("Authorization", `Bearer ${user.token}`);
+}
+
+export async function addMember(
+  organizationId: string,
+  user: { id: string; token: string },
+  role: "ADMIN" | "MANAGER" | "MEMBER" = "MEMBER",
+) {
+  await ensureUser(user);
+  return prisma.organizationMember.create({
+    data: { organizationId, userId: user.id, role, status: "ACTIVE" },
+  });
+}
+
 export async function cleanupUser(userId: string) {
   await prisma.auditLog.deleteMany({ where: { actorId: userId } });
   await prisma.organizationMember.deleteMany({ where: { userId } });

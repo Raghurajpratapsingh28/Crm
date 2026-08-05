@@ -1,6 +1,7 @@
 "use client";
 
-import type { Role } from "@crm/types";
+import type { Permission, Role } from "@crm/types";
+import { can as hasPermission } from "../lib/permissions";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch, ApiRequestError } from "../lib/api";
@@ -14,6 +15,7 @@ export interface OrganizationSummary {
   currency: string;
   role: Role;
   membershipStatus: string;
+  permissions?: Permission[];
 }
 
 interface AuthContextValue {
@@ -22,8 +24,10 @@ interface AuthContextValue {
   organization: OrganizationSummary | null;
   membership: OrganizationSummary | null;
   role: Role | null;
+  permissions: Permission[];
   loading: boolean;
   isAuthenticated: boolean;
+  can: (permission: Permission) => boolean;
   refreshProfile: () => Promise<OrganizationSummary | null>;
 }
 
@@ -44,9 +48,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await apiFetch<{
         user: { id: string };
         organization: OrganizationSummary | null;
+        permissions?: Permission[];
+        role?: Role | null;
       }>("/api/v1/auth/me", { token: accessToken });
-      setOrganization(data.organization);
-      return data.organization;
+      const organization = data.organization
+        ? {
+            ...data.organization,
+            permissions: data.organization.permissions ?? data.permissions ?? [],
+          }
+        : null;
+      setOrganization(organization);
+      return organization;
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 401) {
         setOrganization(null);
@@ -91,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const permissions = organization?.permissions ?? [];
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -98,11 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       organization,
       membership: organization,
       role: organization?.role ?? null,
+      permissions,
       loading,
       isAuthenticated: Boolean(session?.user),
+      can: (permission: Permission) => hasPermission(permissions, permission),
       refreshProfile: () => loadProfile(session?.access_token) as Promise<OrganizationSummary | null>,
     }),
-    [user, session, organization, loading],
+    [user, session, organization, permissions, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

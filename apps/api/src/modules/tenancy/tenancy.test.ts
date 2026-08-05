@@ -87,17 +87,17 @@ describe("tenant isolation", () => {
     const deniedContact = await request(app)
       .get(`/api/v1/contacts/${ctx.contactB.id}`)
       .set("Authorization", `Bearer ${ctx.userA.token}`);
-    expect(deniedContact.status).toBe(403);
+    expect(deniedContact.status).toBe(404);
 
     const deniedCompany = await request(app)
       .get(`/api/v1/companies/${ctx.companyB.id}`)
       .set("Authorization", `Bearer ${ctx.userA.token}`);
-    expect(deniedCompany.status).toBe(403);
+    expect(deniedCompany.status).toBe(404);
 
     const deniedDeal = await request(app)
       .get(`/api/v1/deals/${ctx.dealB.id}`)
       .set("Authorization", `Bearer ${ctx.userA.token}`);
-    expect(deniedDeal.status).toBe(403);
+    expect(deniedDeal.status).toBe(404);
   });
 
   it("ignores a spoofed X-Organization-ID header for a foreign org", async () => {

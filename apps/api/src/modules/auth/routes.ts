@@ -1,3 +1,4 @@
+import { permissionsForRole } from "@crm/types";
 import { Router } from "express";
 import { requireAuth, type AuthedRequest } from "../../middleware/auth.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -31,8 +32,11 @@ authRouter.get(
               currency: membership.organization.currency,
               role: membership.role,
               membershipStatus: membership.status,
+              permissions: permissionsForRole(membership.role),
             }
           : null,
+        permissions: membership ? permissionsForRole(membership.role) : [],
+        role: membership?.role ?? null,
       }),
     );
   }),
