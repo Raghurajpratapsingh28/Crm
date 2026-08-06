@@ -9,6 +9,7 @@ import { forbidden, ok } from "../../utils/errors.js";
 import {
   createOrganizationForUser,
   getActiveMembership,
+  transferOwnership,
   updateCurrentOrganization,
 } from "./organization.service.js";
 
@@ -49,6 +50,7 @@ organizationsRouter.get(
         timezone: membership.organization.timezone,
         currency: membership.organization.currency,
         role: membership.role,
+        department: membership.department,
         membershipStatus: membership.status,
       }),
     );
@@ -67,5 +69,19 @@ organizationsRouter.patch(
     const body = req.body as { name?: string; timezone?: string; currency?: string };
     const updated = await updateCurrentOrganization(userId, tenantId(req as TenantRequest), body);
     res.json(ok(updated));
+  }),
+);
+
+organizationsRouter.post(
+  "/current/transfer-ownership",
+  requireAuth,
+  requireTenant,
+  requirePermission(PERMISSIONS.ORGANIZATION_UPDATE),
+  asyncHandler(async (req, res) => {
+    const userId = (req as AuthedRequest).auth?.userId;
+    if (!userId) throw forbidden();
+    const memberId = String((req.body as { memberId?: string }).memberId ?? "");
+    const result = await transferOwnership(tenantId(req as TenantRequest), userId, memberId);
+    res.json(ok(result));
   }),
 );

@@ -13,9 +13,9 @@ const links = [
   { href: "/tasks", label: "Tasks", permission: PERMISSIONS.TASKS_READ },
   { href: "/activities", label: "Activities", permission: PERMISSIONS.ACTIVITIES_READ },
   { href: "/analytics", label: "Analytics", permission: PERMISSIONS.ANALYTICS_TEAM },
-  { href: "/team", label: "Team", permission: PERMISSIONS.USERS_INVITE },
+  { href: "/team", label: "Team", permission: PERMISSIONS.USERS_READ },
   { href: "/billing", label: "Billing", permission: PERMISSIONS.BILLING_READ },
-  { href: "/settings", label: "Settings", permission: PERMISSIONS.ORGANIZATION_UPDATE },
+  { href: "/settings", label: "Settings", permission: PERMISSIONS.ORGANIZATION_READ },
 ] as const;
 
 export function AppNav() {

@@ -95,7 +95,7 @@ describe("ADMIN", () => {
     await request(app).get("/api/v1/auth/me").set("Authorization", `Bearer ${invitee.token}`);
 
     const invited = await request(app)
-      .post("/api/v1/team")
+      .post("/api/v1/team/invitations")
       .set("Authorization", `Bearer ${ctx.admin.token}`)
       .send({ email: invitee.email, role: "MEMBER" });
     expect(invited.status).toBe(201);
@@ -116,7 +116,8 @@ describe("ADMIN", () => {
       .patch(`/api/v1/team/${self.id}`)
       .set("Authorization", `Bearer ${ctx.admin.token}`)
       .send({ role: "MEMBER" });
-    expect(selfRole.status).toBe(403);
+    expect(selfRole.status).toBe(409);
+    expect(selfRole.body.error.code).toBe("LAST_ADMIN_REQUIRED");
 
     const deactivated = await request(app)
       .delete(`/api/v1/team/${memberRow.id}`)
@@ -160,7 +161,7 @@ describe("MANAGER", () => {
     expect(org.status).toBe(403);
 
     const invite = await request(app)
-      .post("/api/v1/team")
+      .post("/api/v1/team/invitations")
       .set("Authorization", `Bearer ${ctx.manager.token}`)
       .send({ email: ctx.member.email });
     expect(invite.status).toBe(403);

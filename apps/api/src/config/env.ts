@@ -14,6 +14,8 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().optional().default(""),
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional().default(""),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
+  INVITATION_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  INVITATION_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
 });
 
 function parseEnv() {
@@ -38,6 +40,8 @@ export const env = {
   supabaseJwtSecret: parsed.SUPABASE_JWT_SECRET,
   supabaseUrl,
   supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY,
+  invitationTtlDays: parsed.INVITATION_TTL_DAYS,
+  invitationResendCooldownSeconds: parsed.INVITATION_RESEND_COOLDOWN_SECONDS,
 };
 
 export const isDev = env.nodeEnv !== "production";

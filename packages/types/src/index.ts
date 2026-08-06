@@ -39,7 +39,17 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "INVALID"
   | "NOT_FOUND"
-  | "INTERNAL";
+  | "INTERNAL"
+  | "MEMBER_ALREADY_EXISTS"
+  | "INVITATION_ALREADY_EXISTS"
+  | "INVITATION_EXPIRED"
+  | "INVITATION_CANCELLED"
+  | "INVITATION_ALREADY_ACCEPTED"
+  | "INVALID_INVITATION"
+  | "EMAIL_MISMATCH"
+  | "MEMBERSHIP_ALREADY_EXISTS"
+  | "LAST_ADMIN_REQUIRED"
+  | "RATE_LIMITED";
 
 /** `id` is the Supabase `auth.users.id`. */
 export interface AuthUser {

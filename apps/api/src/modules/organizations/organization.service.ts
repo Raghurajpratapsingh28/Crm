@@ -1,7 +1,9 @@
 import { DEFAULT_PIPELINE_NAME, DEFAULT_PIPELINE_STAGES } from "@crm/types";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { forbidden, invalid } from "../../utils/errors.js";
+import { writeAudit } from "../../services/audit.service.js";
+import { notify } from "../../services/notification.service.js";
+import { forbidden, invalid, notFound } from "../../utils/errors.js";
 
 const CURRENCY = /^[A-Z]{3}$/;
 
@@ -135,9 +137,59 @@ export async function updateCurrentOrganization(
   return toCurrent({ ...membership, organization });
 }
 
+export async function transferOwnership(organizationId: string, actorId: string, memberId: string) {
+  if (!memberId) throw invalid("memberId is required");
+
+  return prisma.$transaction(async (tx) => {
+    const actor = await tx.organizationMember.findFirst({
+      where: { organizationId, userId: actorId, status: "ACTIVE" },
+    });
+    if (!actor || actor.role !== "ADMIN") throw forbidden();
+
+    const target = await tx.organizationMember.findFirst({
+      where: { id: memberId, organizationId },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+    });
+    if (!target) throw notFound();
+    if (target.status !== "ACTIVE") throw invalid("target member must be ACTIVE");
+    if (target.userId === actorId) throw invalid("cannot transfer ownership to yourself");
+
+    await tx.organizationMember.update({
+      where: { id: target.id },
+      data: { role: "ADMIN" },
+    });
+    await tx.organizationMember.update({
+      where: { id: actor.id },
+      data: { role: "MANAGER" },
+    });
+
+    await writeAudit(tx, {
+      organizationId,
+      actorId,
+      action: "OWNERSHIP_TRANSFERRED",
+      entityType: "organization_members",
+      entityId: target.id,
+      metadata: { fromUserId: actorId, toUserId: target.userId, actorRoleAfter: "MANAGER" },
+    });
+    await notify(tx, {
+      organizationId,
+      userId: target.userId,
+      type: "MEMBER_ROLE_CHANGED",
+      payload: { event: "ownership_transferred", newRole: "ADMIN" },
+    });
+
+    return {
+      previousAdminId: actor.id,
+      newAdminId: target.id,
+      targetUserId: target.userId,
+    };
+  });
+}
+
 function toCurrent(row: {
   role: "ADMIN" | "MANAGER" | "MEMBER";
   status: "INVITED" | "ACTIVE" | "DEACTIVATED";
+  department?: "SALES" | "MARKETING" | "MANAGEMENT" | "OTHER" | null;
   organization: {
     id: string;
     name: string;
@@ -151,6 +203,7 @@ function toCurrent(row: {
     timezone: row.organization.timezone,
     currency: row.organization.currency,
     role: row.role,
+    department: row.department ?? null,
     membershipStatus: row.status,
   };
 }

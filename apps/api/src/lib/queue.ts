@@ -5,9 +5,14 @@ import { prisma } from "./prisma.js";
 export async function enqueue(
   type: JobType,
   payload: Prisma.InputJsonValue,
-  availableAt = new Date(),
+  options: { organizationId?: string; availableAt?: Date } = {},
 ) {
   return prisma.job.create({
-    data: { type, payload, availableAt },
+    data: {
+      type,
+      payload,
+      organizationId: options.organizationId,
+      availableAt: options.availableAt ?? new Date(),
+    },
   });
 }

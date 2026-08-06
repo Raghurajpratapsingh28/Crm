@@ -12,7 +12,7 @@ const PUBLIC_PREFIXES = [
 ];
 
 function isPublic(pathname: string) {
-  return PUBLIC_PREFIXES.some((path) => pathname === path);
+  return PUBLIC_PREFIXES.some((path) => pathname === path) || pathname.startsWith("/invitations/");
 }
 
 export async function middleware(request: NextRequest) {
@@ -52,7 +52,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && (pathname === "/login" || pathname === "/signup" || pathname === "/forgot-password")) {
+    const next = request.nextUrl.searchParams.get("next");
     const url = request.nextUrl.clone();
+    if (next?.startsWith("/invitations/")) {
+      url.pathname = next;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }

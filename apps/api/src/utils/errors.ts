@@ -28,6 +28,14 @@ export function notFound(message = "Not found") {
   return new AppError(404, "NOT_FOUND", message);
 }
 
+export function conflict(code: string, message: string) {
+  return new AppError(409, code, message);
+}
+
+export function fail(status: number, code: string, message: string) {
+  return new AppError(status, code, message);
+}
+
 export function toErrorBody(error: AppError | Error, requestId: string): ApiErrorBody {
   if (error instanceof AppError) {
     return {

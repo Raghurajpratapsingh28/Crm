@@ -97,12 +97,85 @@ p {
   font-size: 0.95rem;
 }
 
-.form input {
+.form input,
+.form select,
+.filters input,
+.filters select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
   background: #fff;
+}
+
+.card.wide {
+  max-width: 1080px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.table a {
+  color: var(--accent);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions button,
+.toolbar a,
+.toolbar button {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.actions button.secondary,
+.toolbar a.secondary {
+  background: transparent;
+  color: var(--ink);
 }
 
 .form button,

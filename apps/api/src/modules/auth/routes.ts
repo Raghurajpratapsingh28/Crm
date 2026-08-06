@@ -31,6 +31,7 @@ authRouter.get(
               timezone: membership.organization.timezone,
               currency: membership.organization.currency,
               role: membership.role,
+              department: membership.department,
               membershipStatus: membership.status,
               permissions: permissionsForRole(membership.role),
             }

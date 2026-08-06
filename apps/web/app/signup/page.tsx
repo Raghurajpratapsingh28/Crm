@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { AuthGate } from "../../components/auth-gate";
 import { useAuth } from "../../components/auth-provider";
 import { signUp } from "../../lib/supabase/auth";
 
 export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
+  const next = searchParams.get("next");
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +44,7 @@ export default function SignupPage() {
                 const result = await signUp({ email, password, fullName });
                 if (result.session) {
                   await refreshProfile();
-                  router.replace("/onboarding");
+                  router.replace(next?.startsWith("/") ? next : "/onboarding");
                   return;
                 }
                 setMessage("Check your email to confirm the account, then sign in.");
@@ -81,7 +91,9 @@ export default function SignupPage() {
             </button>
           </form>
           <p>
-            <Link href="/login">Already have an account</Link>
+            <Link href={next ? `/login?next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}` : "/login"}>
+              Already have an account
+            </Link>
           </p>
         </div>
       </main>

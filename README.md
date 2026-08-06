@@ -2,7 +2,7 @@
 
 Multi-tenant CRM monorepo: Next.js web, Express API, Prisma/PostgreSQL, Supabase Auth, Go worker. Local Postgres via Docker Compose; production target is Kubernetes.
 
-Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Data model: [`docs/ERD.md`](./docs/ERD.md). Auth: [`docs/AUTH.md`](./docs/AUTH.md). Tenancy: [`docs/TENANCY.md`](./docs/TENANCY.md). RBAC: [`docs/RBAC.md`](./docs/RBAC.md). Authorization: [`docs/AUTHORIZATION.md`](./docs/AUTHORIZATION.md).
+Product notes live in [`docs/PRD.md`](./docs/PRD.md). Runtime design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Data model: [`docs/ERD.md`](./docs/ERD.md). Auth: [`docs/AUTH.md`](./docs/AUTH.md). Tenancy: [`docs/TENANCY.md`](./docs/TENANCY.md). RBAC: [`docs/RBAC.md`](./docs/RBAC.md). Authorization: [`docs/AUTHORIZATION.md`](./docs/AUTHORIZATION.md). Team: [`docs/TEAM_MANAGEMENT.md`](./docs/TEAM_MANAGEMENT.md). Invitations: [`docs/INVITATIONS.md`](./docs/INVITATIONS.md).
 
 ## Stack
 

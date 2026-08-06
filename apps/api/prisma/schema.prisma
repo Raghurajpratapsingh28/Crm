@@ -71,6 +71,9 @@ enum NotificationType {
   TASK_ASSIGNED
   PROPOSAL_ACCEPTED
   PAYMENT_RECEIVED
+  TEAM_MEMBER_JOINED
+  MEMBER_ROLE_CHANGED
+  MEMBER_STATUS_CHANGED
 }
 
 enum PaymentProvider {
@@ -106,6 +109,11 @@ enum AuditAction {
   SUBSCRIPTION_UPDATED
   ORGANIZATION_UPDATED
   PERMISSION_CHANGED
+  INVITATION_RESENT
+  INVITATION_CANCELLED
+  MEMBER_JOINED
+  MEMBER_DEPARTMENT_CHANGED
+  OWNERSHIP_TRANSFERRED
 }
 
 enum JobStatus {
@@ -128,6 +136,7 @@ model User {
 
   memberships         OrganizationMember[]
   invitedMembers      OrganizationMember[] @relation("MemberInviter")
+  invitationsSent     OrganizationInvitation[] @relation("InvitationInviter")
   ownedCompanies      Company[]            @relation("CompanyOwner")
   ownedContacts       Contact[]            @relation("ContactOwner")
   ownedDeals          Deal[]               @relation("DealOwner")
@@ -150,6 +159,7 @@ model Organization {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   members        OrganizationMember[]
+  invitations    OrganizationInvitation[]
   companies      Company[]
   contacts       Contact[]
   pipelines      Pipeline[]
@@ -185,7 +195,33 @@ model OrganizationMember {
   @@unique([organizationId, userId])
   @@index([organizationId, status])
   @@index([organizationId, role])
+  @@index([organizationId, department])
   @@map("organization_members")
+}
+
+/// Pending/historical org invites. Only `token_hash` is stored — never the raw token.
+model OrganizationInvitation {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  email          String
+  role           Role        @default(MEMBER)
+  department     Department?
+  tokenHash      String      @unique @map("token_hash")
+  expiresAt      DateTime    @map("expires_at")
+  acceptedAt     DateTime?   @map("accepted_at")
+  cancelledAt    DateTime?   @map("cancelled_at")
+  invitedById    String      @map("invited_by") @db.Uuid
+  lastSentAt     DateTime    @default(now()) @map("last_sent_at")
+  sendCount      Int         @default(1) @map("send_count")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, email])
+  @@index([organizationId, expiresAt])
+  @@map("organization_invitations")
 }
 
 // --- CRM ---

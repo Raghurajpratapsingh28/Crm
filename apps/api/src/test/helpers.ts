@@ -68,6 +68,7 @@ export async function addMember(
 }
 
 export async function cleanupUser(userId: string) {
+  await prisma.organizationInvitation.deleteMany({ where: { invitedById: userId } });
   await prisma.auditLog.deleteMany({ where: { actorId: userId } });
   await prisma.organizationMember.deleteMany({ where: { userId } });
   await prisma.user.deleteMany({ where: { id: userId } });
@@ -75,6 +76,7 @@ export async function cleanupUser(userId: string) {
 
 export async function cleanupOrganization(organizationId: string) {
   await prisma.job.deleteMany({ where: { organizationId } });
+  await prisma.organizationInvitation.deleteMany({ where: { organizationId } });
   await prisma.auditLog.deleteMany({ where: { organizationId } });
   await prisma.paymentEvent.deleteMany({ where: { organizationId } });
   await prisma.invoice.deleteMany({ where: { organizationId } });

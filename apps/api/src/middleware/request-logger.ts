@@ -13,7 +13,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     const payload = {
       requestId: req.requestId,
       method: req.method,
-      path: req.path,
+      path: redactInvitationPath(req.path),
       status: res.statusCode,
       ms,
     };
@@ -27,4 +27,12 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   });
 
   next();
+}
+
+function redactInvitationPath(path: string) {
+  return path.replace(/\/invitations\/([^/]+)(\/accept)?$/, (_match, segment: string, accept?: string) => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segment);
+    if (uuid) return `/invitations/${segment}${accept ?? ""}`;
+    return `/invitations/[redacted]${accept ?? ""}`;
+  });
 }
