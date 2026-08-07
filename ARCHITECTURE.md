@@ -119,6 +119,19 @@ sequenceDiagram
 
 Webhook routes are unauthenticated but **signature-verified**. Checkout routes are `ADMIN` only.
 
+## Deals, pipeline, and Kanban
+
+CRM opportunities are **`Deal`** rows scoped by `organization_id`, tied to a **`Pipeline`** and **`PipelineStage`**. Org onboarding seeds a default **Sales Pipeline** with ordered stages (Lead → … → Won/Lost) and default stage probabilities in `@crm/types`.
+
+| Layer | Location | Responsibility |
+|---|---|---|
+| API | `apps/api/src/modules/deals/deal.service.ts` | CRUD, search/filter/sort, owner assignment, probability rules (`STAGE_DEFAULT` vs `MANUAL`), transactional stage moves with `SELECT … FOR UPDATE`, immutable `DealStageHistory`, activities, audit; enqueue `notification.fanout` after commit-safe tx writes |
+| API | `apps/api/src/modules/pipelines/pipeline-board.service.ts` | `GET …/kanban` and `GET …/summary` with tenant + owner visibility, SQL windowed cards, and weighted aggregates |
+| Worker | `apps/worker/internal/notifications` | Creates in-app notifications from `notification.fanout` jobs (idempotent on job id) |
+| Web | `apps/web/app/(app)/pipeline`, `components/deals/*` | Kanban (dnd-kit), URL-backed filters, Lost/Won dialogs, optimistic drag with rollback, deal list/detail/create/edit |
+
+Stage changes **must** use `POST /api/v1/deals/:id/stage` (or `PATCH /:id/stage`), not generic deal PATCH. Lost requires a reason; Won/Lost timestamps clear on reopen. See [docs/DEALS.md](./docs/DEALS.md), [docs/PIPELINE.md](./docs/PIPELINE.md), [docs/KANBAN.md](./docs/KANBAN.md).
+
 ## Monorepo
 
 ```

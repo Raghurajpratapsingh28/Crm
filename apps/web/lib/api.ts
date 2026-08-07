@@ -3,12 +3,14 @@ import { env } from "./env";
 export class ApiRequestError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly data?: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, data?: unknown) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
     this.code = code;
+    this.data = data;
   }
 }
 
@@ -35,6 +37,7 @@ export async function apiFetch<T>(path: string, options: RequestInit & { token?:
       res.status,
       body.error?.code ?? "INTERNAL",
       body.error?.message ?? body.message ?? `API ${res.status}`,
+      body.data,
     );
   }
 

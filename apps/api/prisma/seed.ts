@@ -49,14 +49,14 @@ const IDS = {
 } as const;
 
 const DEFAULT_STAGES = [
-  { id: IDS.stages.lead, name: "Lead", order: 0, isWon: false, isLost: false },
-  { id: IDS.stages.contacted, name: "Contacted", order: 1, isWon: false, isLost: false },
-  { id: IDS.stages.qualified, name: "Qualified", order: 2, isWon: false, isLost: false },
-  { id: IDS.stages.meeting, name: "Meeting", order: 3, isWon: false, isLost: false },
-  { id: IDS.stages.proposal, name: "Proposal", order: 4, isWon: false, isLost: false },
-  { id: IDS.stages.negotiation, name: "Negotiation", order: 5, isWon: false, isLost: false },
-  { id: IDS.stages.won, name: "Won", order: 6, isWon: true, isLost: false },
-  { id: IDS.stages.lost, name: "Lost", order: 7, isWon: false, isLost: true },
+  { id: IDS.stages.lead, name: "Lead", key: "lead", order: 0, probability: 10, isWon: false, isLost: false },
+  { id: IDS.stages.contacted, name: "Contacted", key: "contacted", order: 1, probability: 20, isWon: false, isLost: false },
+  { id: IDS.stages.qualified, name: "Qualified", key: "qualified", order: 2, probability: 35, isWon: false, isLost: false },
+  { id: IDS.stages.meeting, name: "Meeting", key: "meeting", order: 3, probability: 50, isWon: false, isLost: false },
+  { id: IDS.stages.proposal, name: "Proposal", key: "proposal", order: 4, probability: 65, isWon: false, isLost: false },
+  { id: IDS.stages.negotiation, name: "Negotiation", key: "negotiation", order: 5, probability: 80, isWon: false, isLost: false },
+  { id: IDS.stages.won, name: "Won", key: "won", order: 6, probability: 100, isWon: true, isLost: false },
+  { id: IDS.stages.lost, name: "Lost", key: "lost", order: 7, probability: 0, isWon: false, isLost: true },
 ] as const;
 
 async function main() {
@@ -140,12 +140,15 @@ async function main() {
       id: IDS.pipeline,
       organizationId: IDS.org,
       name: "Sales",
+      isDefault: true,
       stages: {
         create: DEFAULT_STAGES.map((stage) => ({
           id: stage.id,
           organizationId: IDS.org,
           name: stage.name,
+          key: stage.key,
           order: stage.order,
+          probability: stage.probability,
           isWon: stage.isWon,
           isLost: stage.isLost,
         })),

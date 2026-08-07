@@ -49,7 +49,27 @@ export type ApiErrorCode =
   | "EMAIL_MISMATCH"
   | "MEMBERSHIP_ALREADY_EXISTS"
   | "LAST_ADMIN_REQUIRED"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "COMPANY_NOT_FOUND"
+  | "CONTACT_NOT_FOUND"
+  | "COMPANY_HAS_DEPENDENCIES"
+  | "CONTACT_HAS_DEPENDENCIES"
+  | "CONTACT_DUPLICATE"
+  | "COMPANY_DUPLICATE_WARNING"
+  | "INVALID_COMPANY"
+  | "INVALID_CONTACT"
+  | "INVALID_OWNER"
+  | "INVALID_COMPANY_ASSOCIATION"
+  | "INSUFFICIENT_PERMISSION"
+  | "DEAL_NOT_FOUND"
+  | "DEAL_FORBIDDEN"
+  | "PIPELINE_NOT_FOUND"
+  | "STAGE_NOT_FOUND"
+  | "INVALID_STAGE"
+  | "INVALID_STAGE_PIPELINE"
+  | "LOST_REASON_REQUIRED"
+  | "INVALID_PROBABILITY"
+  | "DEAL_CONFLICT";
 
 /** `id` is the Supabase `auth.users.id`. */
 export interface AuthUser {
@@ -60,6 +80,15 @@ export interface AuthUser {
   organizationId: string;
 }
 
+export type ContactSource =
+  | "REFERRAL"
+  | "WEBSITE"
+  | "COLD_OUTREACH"
+  | "EVENT"
+  | "SOCIAL"
+  | "PARTNER"
+  | "OTHER";
+
 export interface ApiErrorBody {
   success: false;
   error: {
@@ -67,6 +96,7 @@ export interface ApiErrorBody {
     message: string;
   };
   requestId: string;
+  data?: unknown;
 }
 
 export interface ApiSuccessBody<T> {
@@ -220,16 +250,18 @@ export const DEFAULT_PIPELINE_NAME = "Default Sales Pipeline";
 
 export const DEFAULT_PIPELINE_STAGES: ReadonlyArray<{
   name: DealStageName;
+  key: string;
   order: number;
+  probability: number;
   isWon: boolean;
   isLost: boolean;
 }> = [
-  { name: "Lead", order: 0, isWon: false, isLost: false },
-  { name: "Contacted", order: 1, isWon: false, isLost: false },
-  { name: "Qualified", order: 2, isWon: false, isLost: false },
-  { name: "Meeting", order: 3, isWon: false, isLost: false },
-  { name: "Proposal", order: 4, isWon: false, isLost: false },
-  { name: "Negotiation", order: 5, isWon: false, isLost: false },
-  { name: "Won", order: 6, isWon: true, isLost: false },
-  { name: "Lost", order: 7, isWon: false, isLost: true },
+  { name: "Lead", key: "lead", order: 0, probability: 10, isWon: false, isLost: false },
+  { name: "Contacted", key: "contacted", order: 1, probability: 20, isWon: false, isLost: false },
+  { name: "Qualified", key: "qualified", order: 2, probability: 35, isWon: false, isLost: false },
+  { name: "Meeting", key: "meeting", order: 3, probability: 50, isWon: false, isLost: false },
+  { name: "Proposal", key: "proposal", order: 4, probability: 65, isWon: false, isLost: false },
+  { name: "Negotiation", key: "negotiation", order: 5, probability: 80, isWon: false, isLost: false },
+  { name: "Won", key: "won", order: 6, probability: 100, isWon: true, isLost: false },
+  { name: "Lost", key: "lost", order: 7, probability: 0, isWon: false, isLost: true },
 ];

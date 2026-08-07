@@ -9,15 +9,22 @@ import { requireTenant, tenantId, type TenantRequest } from "../../middleware/te
 import { writeAudit } from "../../services/audit.service.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { invalid, notFound, ok } from "../../utils/errors.js";
+import { pipelineKanban, pipelineSummary } from "./pipeline-board.service.js";
 
 export const pipelinesRouter: Router = Router();
 pipelinesRouter.use(requireAuth, requireTenant);
 
+function param(value: string | undefined) {
+  if (!value) throw notFound();
+  return value;
+}
+
 function actor(req: TenantRequest) {
   const organizationId = tenantId(req);
   const userId = req.auth?.userId;
-  if (!userId) throw notFound();
-  return { organizationId, userId };
+  const role = req.tenant?.role;
+  if (!userId || !role) throw notFound();
+  return { organizationId, userId, role };
 }
 
 pipelinesRouter.get(
@@ -30,6 +37,38 @@ pipelinesRouter.get(
       include: { stages: { orderBy: { order: "asc" } } },
     });
     res.json(ok(pipelines));
+  }),
+);
+
+pipelinesRouter.get(
+  "/:pipelineId/kanban",
+  requirePermission(PERMISSIONS.DEALS_READ),
+  asyncHandler(async (req, res) => {
+    res.json(
+      ok(
+        await pipelineKanban(
+          actor(req as TenantRequest),
+          param(req.params.pipelineId),
+          req.query as Record<string, unknown>,
+        ),
+      ),
+    );
+  }),
+);
+
+pipelinesRouter.get(
+  "/:pipelineId/summary",
+  requirePermission(PERMISSIONS.DEALS_READ),
+  asyncHandler(async (req, res) => {
+    res.json(
+      ok(
+        await pipelineSummary(
+          actor(req as TenantRequest),
+          param(req.params.pipelineId),
+          req.query as Record<string, unknown>,
+        ),
+      ),
+    );
   }),
 );
 
@@ -70,8 +109,23 @@ pipelinesRouter.post(
       where: scopedWhere(organizationId, { id: req.params.id }),
     });
     if (!pipeline) throw notFound();
-    const body = req.body as { name?: string; order?: number; isWon?: boolean; isLost?: boolean };
-    if (!body.name?.trim()) throw invalid("name is required");
+    const body = req.body as {
+      name?: string;
+      key?: string;
+      order?: number;
+      probability?: number;
+      isWon?: boolean;
+      isLost?: boolean;
+    };
+    const name = body.name?.trim();
+    if (!name) throw invalid("name is required");
+    const probability =
+      body.probability === undefined
+        ? 0
+        : Number.isInteger(body.probability) && body.probability >= 0 && body.probability <= 100
+          ? body.probability
+          : null;
+    if (probability === null) throw invalid("probability must be an integer between 0 and 100");
     const last = await prisma.pipelineStage.aggregate({
       where: { pipelineId: pipeline.id },
       _max: { order: true },
@@ -81,7 +135,9 @@ pipelinesRouter.post(
         data: {
           organizationId,
           pipelineId: pipeline.id,
-          name: body.name!.trim(),
+          name,
+          key: (body.key?.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, "-")).replace(/^-|-$/g, ""),
+          probability,
           order: body.order ?? (last._max.order ?? -1) + 1,
           isWon: Boolean(body.isWon),
           isLost: Boolean(body.isLost),
@@ -114,12 +170,27 @@ pipelinesRouter.patch(
       }),
     });
     if (!stage) throw notFound();
-    const body = req.body as { name?: string; order?: number; isWon?: boolean; isLost?: boolean };
+    const body = req.body as {
+      name?: string;
+      key?: string;
+      order?: number;
+      probability?: number;
+      isWon?: boolean;
+      isLost?: boolean;
+    };
+    if (
+      body.probability !== undefined &&
+      (!Number.isInteger(body.probability) || body.probability < 0 || body.probability > 100)
+    ) {
+      throw invalid("probability must be an integer between 0 and 100");
+    }
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.pipelineStage.update({
         where: { id: stage.id },
         data: {
           name: body.name?.trim() ?? stage.name,
+          key: body.key?.trim() ?? stage.key,
+          probability: body.probability ?? stage.probability,
           order: body.order ?? stage.order,
           isWon: body.isWon ?? stage.isWon,
           isLost: body.isLost ?? stage.isLost,

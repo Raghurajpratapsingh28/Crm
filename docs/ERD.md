@@ -85,7 +85,12 @@ erDiagram
     uuid id PK
     uuid organization_id FK
     string name
+    string industry
+    int employee_count
+    string website
     uuid owner_id FK
+    text[] tags
+    string notes
     timestamptz created_at
     timestamptz updated_at
   }
@@ -96,8 +101,14 @@ erDiagram
     string first_name
     string last_name
     string email
+    string phone
+    string job_title
     uuid company_id FK
+    string industry
+    enum source
     uuid owner_id FK
+    text[] tags
+    string notes
     timestamptz created_at
     timestamptz updated_at
   }

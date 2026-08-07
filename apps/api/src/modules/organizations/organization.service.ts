@@ -52,11 +52,14 @@ export async function createOrganizationForUser(
       data: {
         organizationId: organization.id,
         name: DEFAULT_PIPELINE_NAME,
+        isDefault: true,
         stages: {
           create: DEFAULT_PIPELINE_STAGES.map((stage) => ({
             organizationId: organization.id,
             name: stage.name,
+            key: stage.key,
             order: stage.order,
+            probability: stage.probability,
             isWon: stage.isWon,
             isLost: stage.isLost,
           })),

@@ -13,6 +13,7 @@ export default tseslint.config(
       "apps/worker/**",
       "business/**",
       "**/*.test.ts",
+      "**/*.test.tsx",
       "**/src/test/**",
       "**/next-env.d.ts",
     ],

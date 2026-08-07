@@ -561,8 +561,8 @@ Turn the in-scope list into a trackable checklist with rough sizing:
 |---|---|---|---|
 | Auth (Supabase) + Org creation | ⬜ | — | ⬜ |
 | Team invites + RBAC roles | ⬜ | Auth | ⬜ |
-| Contacts CRUD | ⬜ | Auth, Org | ⬜ |
-| Companies CRUD | ⬜ | Auth, Org | ⬜ |
+| Contacts CRUD | ✅ | Auth, Org | ⬜ |
+| Companies CRUD | ✅ | Auth, Org | ⬜ |
 | Deals + Pipeline (kanban) | ⬜ | Contacts, Companies | ⬜ |
 | Tasks | ⬜ | Auth | ⬜ |
 | Activities/timeline | ⬜ | Contacts, Companies, Deals | ⬜ |

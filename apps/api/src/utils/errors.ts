@@ -3,12 +3,14 @@ import type { ApiErrorBody, ApiErrorCode } from "@crm/types";
 export class AppError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode | string;
+  readonly data?: unknown;
 
-  constructor(status: number, code: ApiErrorCode | string, message: string) {
+  constructor(status: number, code: ApiErrorCode | string, message: string, data?: unknown) {
     super(message);
     this.name = "AppError";
     this.status = status;
     this.code = code;
+    this.data = data;
   }
 }
 
@@ -28,12 +30,12 @@ export function notFound(message = "Not found") {
   return new AppError(404, "NOT_FOUND", message);
 }
 
-export function conflict(code: string, message: string) {
-  return new AppError(409, code, message);
+export function conflict(code: string, message: string, data?: unknown) {
+  return new AppError(409, code, message, data);
 }
 
-export function fail(status: number, code: string, message: string) {
-  return new AppError(status, code, message);
+export function fail(status: number, code: string, message: string, data?: unknown) {
+  return new AppError(status, code, message, data);
 }
 
 export function toErrorBody(error: AppError | Error, requestId: string): ApiErrorBody {
@@ -42,6 +44,7 @@ export function toErrorBody(error: AppError | Error, requestId: string): ApiErro
       success: false,
       error: { code: error.code, message: error.message },
       requestId,
+      ...(error.data !== undefined ? { data: error.data } : {}),
     };
   }
   return {

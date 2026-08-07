@@ -43,7 +43,7 @@ func main() {
 		email.Handler{TypeName: jobs.EmailInvite},
 		email.Handler{TypeName: jobs.EmailReceipt},
 		email.Handler{TypeName: jobs.EmailFollowUp},
-		notifications.Handler{},
+		notifications.Handler{DB: db},
 		payments.Reconcile{},
 		payments.Dunning{},
 		analytics.Rollup{},

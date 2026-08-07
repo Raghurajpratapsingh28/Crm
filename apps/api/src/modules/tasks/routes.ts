@@ -54,14 +54,29 @@ tasksRouter.post(
   requirePermission(PERMISSIONS.TASKS_CREATE),
   asyncHandler(async (req, res) => {
     const { organizationId, userId } = actor(req as TenantRequest);
-    const body = req.body as { title?: string; assigneeId?: string };
+    const body = req.body as { title?: string; assigneeId?: string; dealId?: string; companyId?: string; contactId?: string };
     if (!body.title?.trim()) throw invalid("title is required");
+    if (body.dealId) {
+      const deal = await prisma.deal.findFirst({ where: scopedWhere(organizationId, { id: body.dealId }) });
+      if (!deal) throw invalid("deal must belong to this organization");
+    }
+    if (body.companyId) {
+      const company = await prisma.company.findFirst({ where: scopedWhere(organizationId, { id: body.companyId }) });
+      if (!company) throw invalid("company must belong to this organization");
+    }
+    if (body.contactId) {
+      const contact = await prisma.contact.findFirst({ where: scopedWhere(organizationId, { id: body.contactId }) });
+      if (!contact) throw invalid("contact must belong to this organization");
+    }
     const task = await prisma.task.create({
       data: {
         organizationId,
         title: body.title.trim(),
         assigneeId: userId,
         createdById: userId,
+        dealId: body.dealId || undefined,
+        companyId: body.companyId || undefined,
+        contactId: body.contactId || undefined,
       },
     });
     res.status(201).json(ok(task));

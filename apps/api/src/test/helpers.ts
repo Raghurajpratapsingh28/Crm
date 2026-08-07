@@ -83,6 +83,7 @@ export async function cleanupOrganization(organizationId: string) {
   await prisma.notification.deleteMany({ where: { organizationId } });
   await prisma.task.deleteMany({ where: { organizationId } });
   await prisma.activity.deleteMany({ where: { organizationId } });
+  await prisma.dealStageHistory.deleteMany({ where: { organizationId } });
   await prisma.deal.deleteMany({ where: { organizationId } });
   await prisma.pipelineStage.deleteMany({ where: { organizationId } });
   await prisma.pipeline.deleteMany({ where: { organizationId } });

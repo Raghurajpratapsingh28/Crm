@@ -1,15 +1,19 @@
 import { PERMISSIONS } from "@crm/types";
 import { Router } from "express";
 import { rejectProtectedFields } from "../../lib/dto.js";
-import { prisma } from "../../lib/prisma.js";
-import { scopedWhere } from "../../lib/tenant-scope.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { requirePermission } from "../../middleware/permissions.js";
 import { requireTenant, tenantId, type TenantRequest } from "../../middleware/tenant.js";
-import { writeAudit } from "../../services/audit.service.js";
-import { assertVisibleOwned, ownerScope } from "../../services/authorization.service.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { invalid, notFound, ok } from "../../utils/errors.js";
+import { notFound, ok } from "../../utils/errors.js";
+import {
+  createContact,
+  deleteContact,
+  findContactDuplicate,
+  getContact,
+  listContacts,
+  updateContact,
+} from "./contact.service.js";
 
 export const contactsRouter: Router = Router();
 contactsRouter.use(requireAuth, requireTenant);
@@ -22,16 +26,33 @@ function actor(req: TenantRequest) {
   return { organizationId, userId, role };
 }
 
+function param(value: string | undefined) {
+  if (!value) throw notFound();
+  return value;
+}
+
+function writableBody(body: unknown) {
+  const raw = body && typeof body === "object" ? { ...(body as Record<string, unknown>) } : {};
+  const ownerId = raw.ownerId;
+  delete raw.ownerId;
+  rejectProtectedFields(raw);
+  if (ownerId !== undefined) raw.ownerId = ownerId;
+  return raw;
+}
+
 contactsRouter.get(
   "/",
   requirePermission(PERMISSIONS.CONTACTS_READ),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    const contacts = await prisma.contact.findMany({
-      where: { organizationId, ...ownerScope(role, userId) },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(ok(contacts));
+    res.json(ok(await listContacts(actor(req as TenantRequest), req.query as Record<string, unknown>)));
+  }),
+);
+
+contactsRouter.get(
+  "/duplicates",
+  requirePermission(PERMISSIONS.CONTACTS_READ),
+  asyncHandler(async (req, res) => {
+    res.json(ok(await findContactDuplicate(actor(req as TenantRequest), (req.query as { email?: string }).email)));
   }),
 );
 
@@ -39,13 +60,7 @@ contactsRouter.get(
   "/:id",
   requirePermission(PERMISSIONS.CONTACTS_READ),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    const contact = await prisma.contact.findFirst({
-      where: scopedWhere(organizationId, { id: req.params.id }),
-    });
-    if (!contact) throw notFound();
-    assertVisibleOwned(role, userId, contact.ownerId);
-    res.json(ok(contact));
+    res.json(ok(await getContact(actor(req as TenantRequest), param(req.params.id))));
   }),
 );
 
@@ -53,37 +68,7 @@ contactsRouter.post(
   "/",
   requirePermission(PERMISSIONS.CONTACTS_CREATE),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId } = actor(req as TenantRequest);
-    const body = req.body as {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      phone?: string;
-      companyId?: string;
-    };
-
-    if (!body.firstName?.trim() || !body.lastName?.trim()) {
-      throw invalid("firstName and lastName are required");
-    }
-
-    if (body.companyId) {
-      const company = await prisma.company.findFirst({
-        where: scopedWhere(organizationId, { id: body.companyId }),
-      });
-      if (!company) throw notFound();
-    }
-
-    const contact = await prisma.contact.create({
-      data: {
-        organizationId,
-        firstName: body.firstName.trim(),
-        lastName: body.lastName.trim(),
-        email: body.email?.trim() || null,
-        phone: body.phone?.trim() || null,
-        companyId: body.companyId,
-        ownerId: userId,
-      },
-    });
+    const contact = await createContact(actor(req as TenantRequest), (req.body ?? {}) as Record<string, unknown>);
     res.status(201).json(ok(contact));
   }),
 );
@@ -92,33 +77,12 @@ contactsRouter.patch(
   "/:id",
   requirePermission(PERMISSIONS.CONTACTS_UPDATE),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    rejectProtectedFields(req.body);
-    const contact = await prisma.contact.findFirst({
-      where: scopedWhere(organizationId, { id: req.params.id }),
-    });
-    if (!contact) throw notFound();
-    assertVisibleOwned(role, userId, contact.ownerId);
-
-    const body = req.body as {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      phone?: string;
-      companyId?: string | null;
-    };
-
-    const updated = await prisma.contact.update({
-      where: { id: contact.id },
-      data: {
-        firstName: body.firstName?.trim() ?? contact.firstName,
-        lastName: body.lastName?.trim() ?? contact.lastName,
-        email: body.email !== undefined ? body.email?.trim() || null : contact.email,
-        phone: body.phone !== undefined ? body.phone?.trim() || null : contact.phone,
-        companyId: body.companyId !== undefined ? body.companyId : contact.companyId,
-      },
-    });
-    res.json(ok(updated));
+    const contact = await updateContact(
+      actor(req as TenantRequest),
+      param(req.params.id),
+      writableBody(req.body),
+    );
+    res.json(ok(contact));
   }),
 );
 
@@ -126,24 +90,6 @@ contactsRouter.delete(
   "/:id",
   requirePermission(PERMISSIONS.CONTACTS_DELETE),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    const contact = await prisma.contact.findFirst({
-      where: scopedWhere(organizationId, { id: req.params.id }),
-    });
-    if (!contact) throw notFound();
-    assertVisibleOwned(role, userId, contact.ownerId);
-
-    await prisma.$transaction(async (tx) => {
-      await writeAudit(tx, {
-        organizationId,
-        actorId: userId,
-        action: "RECORD_DELETED",
-        entityType: "contacts",
-        entityId: contact.id,
-        metadata: { name: `${contact.firstName} ${contact.lastName}` },
-      });
-      await tx.contact.delete({ where: { id: contact.id } });
-    });
-    res.json(ok({ id: contact.id }));
+    res.json(ok(await deleteContact(actor(req as TenantRequest), param(req.params.id))));
   }),
 );

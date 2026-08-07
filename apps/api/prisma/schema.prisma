@@ -39,6 +39,8 @@ enum ContactSource {
   WEBSITE
   COLD_OUTREACH
   EVENT
+  SOCIAL
+  PARTNER
   OTHER
 }
 
@@ -62,6 +64,11 @@ enum LostReason {
   NO_BUDGET
   GHOSTED
   OTHER
+}
+
+enum ProbabilitySource {
+  STAGE_DEFAULT
+  MANUAL
 }
 
 enum NotificationType {
@@ -114,6 +121,23 @@ enum AuditAction {
   MEMBER_JOINED
   MEMBER_DEPARTMENT_CHANGED
   OWNERSHIP_TRANSFERRED
+  COMPANY_CREATED
+  COMPANY_UPDATED
+  COMPANY_DELETED
+  COMPANY_OWNER_CHANGED
+  CONTACT_CREATED
+  CONTACT_UPDATED
+  CONTACT_DELETED
+  CONTACT_OWNER_CHANGED
+  DEAL_CREATED
+  DEAL_UPDATED
+  DEAL_DELETED
+  DEAL_OWNER_CHANGED
+  DEAL_STAGE_CHANGED
+  DEAL_WON
+  DEAL_LOST
+  DEAL_REOPENED
+  DEAL_PROBABILITY_CHANGED
 }
 
 enum JobStatus {
@@ -140,6 +164,7 @@ model User {
   ownedCompanies      Company[]            @relation("CompanyOwner")
   ownedContacts       Contact[]            @relation("ContactOwner")
   ownedDeals          Deal[]               @relation("DealOwner")
+  dealStageChanges    DealStageHistory[]   @relation("DealStageChanger")
   authoredActivities  Activity[]           @relation("ActivityAuthor")
   assignedTasks       Task[]               @relation("TaskAssignee")
   createdTasks        Task[]               @relation("TaskCreator")
@@ -165,6 +190,7 @@ model Organization {
   pipelines      Pipeline[]
   pipelineStages PipelineStage[]
   deals          Deal[]
+  dealStageHistory DealStageHistory[]
   activities     Activity[]
   tasks          Task[]
   notifications  Notification[]
@@ -235,6 +261,7 @@ model Company {
   website        String?
   ownerId        String?  @map("owner_id") @db.Uuid
   tags           String[] @default([])
+  notes          String?
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -248,6 +275,8 @@ model Company {
   @@index([organizationId])
   @@index([organizationId, name])
   @@index([organizationId, ownerId])
+  @@index([organizationId, industry])
+  @@index([organizationId, createdAt])
   @@map("companies")
 }
 
@@ -264,6 +293,7 @@ model Contact {
   source         ContactSource?
   ownerId        String         @map("owner_id") @db.Uuid
   tags           String[]       @default([])
+  notes          String?
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
@@ -277,6 +307,8 @@ model Contact {
   @@unique([organizationId, email])
   @@index([organizationId, ownerId])
   @@index([organizationId, companyId])
+  @@index([organizationId, source])
+  @@index([organizationId, createdAt])
   @@map("contacts")
 }
 
@@ -284,6 +316,8 @@ model Pipeline {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   name           String   @default("Sales")
+  description    String?
+  isDefault      Boolean  @default(false) @map("is_default")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -293,6 +327,7 @@ model Pipeline {
 
   @@unique([organizationId, name])
   @@index([organizationId])
+  @@index([organizationId, isDefault])
   @@map("pipelines")
 }
 
@@ -301,15 +336,19 @@ model PipelineStage {
   organizationId String   @map("organization_id") @db.Uuid
   pipelineId     String   @map("pipeline_id") @db.Uuid
   name           String
+  key            String?
   order          Int
+  probability    Int      @default(0)
   isWon          Boolean  @default(false) @map("is_won")
   isLost         Boolean  @default(false) @map("is_lost")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  pipeline     Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  deals        Deal[]
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pipeline       Pipeline           @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals          Deal[]
+  historyFrom    DealStageHistory[] @relation("StageHistoryFrom")
+  historyTo      DealStageHistory[] @relation("StageHistoryTo")
 
   @@unique([pipelineId, name])
   @@unique([pipelineId, order])
@@ -320,37 +359,68 @@ model PipelineStage {
 
 /// Unified pipeline record. "Lead" is the first stage, not a separate entity.
 model Deal {
-  id                String      @id @default(uuid()) @db.Uuid
-  organizationId    String      @map("organization_id") @db.Uuid
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String             @map("organization_id") @db.Uuid
   name              String
-  companyId         String      @map("company_id") @db.Uuid
-  primaryContactId  String      @map("primary_contact_id") @db.Uuid
-  pipelineId        String      @map("pipeline_id") @db.Uuid
-  stageId           String      @map("stage_id") @db.Uuid
-  ownerId           String      @map("owner_id") @db.Uuid
-  amount            Decimal?    @db.Decimal(14, 2)
-  currency          String      @default("USD") @db.Char(3)
-  expectedCloseDate DateTime?   @map("expected_close_date") @db.Date
+  description       String?
+  companyId         String             @map("company_id") @db.Uuid
+  primaryContactId  String             @map("primary_contact_id") @db.Uuid
+  pipelineId        String             @map("pipeline_id") @db.Uuid
+  stageId           String             @map("stage_id") @db.Uuid
+  ownerId           String             @map("owner_id") @db.Uuid
+  amount            Decimal?           @db.Decimal(14, 2)
+  currency          String             @default("USD") @db.Char(3)
+  expectedCloseDate DateTime?          @map("expected_close_date") @db.Date
   probability       Int?
-  lostReason        LostReason? @map("lost_reason")
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  probabilitySource ProbabilitySource? @map("probability_source")
+  lostReason        LostReason?        @map("lost_reason")
+  lostReasonNote    String?            @map("lost_reason_note")
+  wonAt             DateTime?          @map("won_at")
+  lostAt            DateTime?          @map("lost_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
 
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  company        Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  primaryContact Contact       @relation("DealPrimaryContact", fields: [primaryContactId], references: [id], onDelete: Restrict)
-  pipeline       Pipeline      @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
-  stage          PipelineStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  owner          User          @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  primaryContact Contact            @relation("DealPrimaryContact", fields: [primaryContactId], references: [id], onDelete: Restrict)
+  pipeline       Pipeline           @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  stage          PipelineStage      @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  owner          User               @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   activities     Activity[]
   tasks          Task[]
+  stageHistory   DealStageHistory[]
 
   @@index([organizationId])
+  @@index([organizationId, pipelineId])
   @@index([organizationId, stageId])
   @@index([organizationId, ownerId])
   @@index([organizationId, expectedCloseDate])
   @@index([organizationId, companyId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, updatedAt])
   @@map("deals")
+}
+
+model DealStageHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  dealId          String   @map("deal_id") @db.Uuid
+  fromStageId     String?  @map("from_stage_id") @db.Uuid
+  toStageId       String   @map("to_stage_id") @db.Uuid
+  changedByUserId String   @map("changed_by_user_id") @db.Uuid
+  changedAt       DateTime @default(now()) @map("changed_at")
+  fromProbability Int?     @map("from_probability")
+  toProbability   Int?     @map("to_probability")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal         Deal          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStage    PipelineStage? @relation("StageHistoryFrom", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStage      PipelineStage @relation("StageHistoryTo", fields: [toStageId], references: [id], onDelete: Restrict)
+  changedBy    User          @relation("DealStageChanger", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, dealId])
+  @@index([dealId, changedAt])
+  @@map("deal_stage_history")
 }
 
 model Activity {
