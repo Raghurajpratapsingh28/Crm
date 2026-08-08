@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAudit } from "../../services/audit.service.js";
-import { notify } from "../../services/notification.service.js";
+import { enqueueNotification } from "../../services/notification.service.js";
 import { conflict, forbidden, invalid, notFound } from "../../utils/errors.js";
 import { activeAdminCount, parseDepartment, parseListQuery, parseRole, parseStatus } from "./team.util.js";
 
@@ -169,11 +169,13 @@ export async function updateMember(
         entityId: member.id,
         metadata: { targetUserId: member.userId, oldRole: member.role, newRole: role },
       });
-      await notify(tx, {
+      await enqueueNotification(tx, {
         organizationId,
         userId: member.userId,
         type: "MEMBER_ROLE_CHANGED",
         payload: { oldRole: member.role, newRole: role },
+        skipUserId: actorId,
+        dedupeKey: `MEMBER_ROLE_CHANGED:${member.id}:${member.role}:${role}`,
       });
     }
 
@@ -219,11 +221,13 @@ export async function deactivateMember(organizationId: string, actorId: string, 
       entityId: member.id,
       metadata: { targetUserId: member.userId, role: member.role },
     });
-    await notify(tx, {
+    await enqueueNotification(tx, {
       organizationId,
       userId: member.userId,
       type: "MEMBER_STATUS_CHANGED",
       payload: { status: "DEACTIVATED" },
+      skipUserId: actorId,
+      dedupeKey: `MEMBER_STATUS_CHANGED:${member.id}:DEACTIVATED:${next.updatedAt.toISOString()}`,
     });
     return next;
   });
@@ -249,11 +253,13 @@ export async function reactivateMember(organizationId: string, actorId: string, 
       entityId: member.id,
       metadata: { targetUserId: member.userId },
     });
-    await notify(tx, {
+    await enqueueNotification(tx, {
       organizationId,
       userId: member.userId,
       type: "MEMBER_STATUS_CHANGED",
       payload: { status: "ACTIVE" },
+      skipUserId: actorId,
+      dedupeKey: `MEMBER_STATUS_CHANGED:${member.id}:ACTIVE:${next.updatedAt.toISOString()}`,
     });
     return next;
   });

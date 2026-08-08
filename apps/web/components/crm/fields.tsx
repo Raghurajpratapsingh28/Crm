@@ -63,12 +63,14 @@ export function OwnerSelector({
   onChange,
   canList,
   currentUser,
+  label = "Owner",
 }: {
   token?: string;
   value: string;
   onChange: (value: string) => void;
   canList: boolean;
   currentUser: { id: string; name: string };
+  label?: string;
 }) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const id = useId();
@@ -85,7 +87,7 @@ export function OwnerSelector({
   if (!canList) {
     return (
       <label htmlFor={id}>
-        Owner
+        {label}
         <input id={id} value={currentUser.name} readOnly />
       </label>
     );
@@ -93,7 +95,7 @@ export function OwnerSelector({
 
   return (
     <label htmlFor={id}>
-      Owner
+      {label}
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
         <option value={currentUser.id}>{currentUser.name}</option>
         {members

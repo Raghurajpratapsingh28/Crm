@@ -74,8 +74,12 @@ enum ProbabilitySource {
 enum NotificationType {
   LEAD_ASSIGNED
   DEAL_STAGE_CHANGED
+  DEAL_ASSIGNED
+  DEAL_WON
+  DEAL_LOST
   FOLLOW_UP_OVERDUE
   TASK_ASSIGNED
+  TASK_REMINDER
   PROPOSAL_ACCEPTED
   PAYMENT_RECEIVED
   TEAM_MEMBER_JOINED
@@ -138,6 +142,15 @@ enum AuditAction {
   DEAL_LOST
   DEAL_REOPENED
   DEAL_PROBABILITY_CHANGED
+  ACTIVITY_CREATED
+  ACTIVITY_UPDATED
+  ACTIVITY_DELETED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_COMPLETED
+  TASK_REOPENED
+  TASK_ASSIGNED
+  TASK_DELETED
 }
 
 enum JobStatus {
@@ -447,6 +460,7 @@ model Activity {
   @@index([organizationId, dealId])
   @@index([organizationId, contactId])
   @@index([organizationId, companyId])
+  @@index([organizationId, authorId])
   @@map("activities")
 }
 
@@ -454,12 +468,14 @@ model Task {
   id             String     @id @default(uuid()) @db.Uuid
   organizationId String     @map("organization_id") @db.Uuid
   title          String
+  description    String?
   assigneeId     String     @map("assignee_id") @db.Uuid
   createdById    String     @map("created_by") @db.Uuid
   companyId      String?    @map("company_id") @db.Uuid
   contactId      String?    @map("contact_id") @db.Uuid
   dealId         String?    @map("deal_id") @db.Uuid
-  dueDate        DateTime?  @map("due_date") @db.Date
+  dueDate        DateTime?  @map("due_date")
+  completedAt    DateTime?  @map("completed_at")
   status         TaskStatus @default(OPEN)
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
@@ -474,6 +490,10 @@ model Task {
   @@index([organizationId, assigneeId, status])
   @@index([organizationId, dueDate])
   @@index([organizationId, dealId])
+  @@index([organizationId, contactId])
+  @@index([organizationId, companyId])
+  @@index([organizationId, status])
+  @@index([status, dueDate])
   @@map("tasks")
 }
 
@@ -482,7 +502,12 @@ model Notification {
   organizationId String           @map("organization_id") @db.Uuid
   userId         String           @map("user_id") @db.Uuid
   type           NotificationType
+  title          String?
+  message        String?
+  entityType     String?          @map("entity_type")
+  entityId       String?          @map("entity_id")
   payload        Json
+  dedupeKey      String?          @unique @map("dedupe_key")
   readAt         DateTime?        @map("read_at")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
@@ -492,6 +517,7 @@ model Notification {
 
   @@index([organizationId, userId, readAt])
   @@index([userId, readAt])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -583,10 +609,13 @@ model Job {
   payload        Json
   status         JobStatus @default(PENDING)
   attempts       Int       @default(0)
+  maxAttempts    Int       @default(5) @map("max_attempts")
   availableAt    DateTime  @default(now()) @map("available_at")
   lockedAt       DateTime? @map("locked_at")
   lockedBy       String?   @map("locked_by")
   processedAt    DateTime? @map("processed_at")
+  failedAt       DateTime? @map("failed_at")
+  requestId      String?   @map("request_id")
   error          String?
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -595,5 +624,8 @@ model Job {
 
   @@index([status, availableAt])
   @@index([organizationId, status])
+  @@index([status, lockedAt])
+  @@index([status, processedAt])
+  @@index([createdAt])
   @@map("jobs")
 }

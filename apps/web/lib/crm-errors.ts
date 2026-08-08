@@ -11,6 +11,18 @@ const MESSAGES: Record<string, string> = {
   INSUFFICIENT_PERMISSION: "You do not have permission to perform this action.",
   FORBIDDEN: "You do not have permission to perform this action.",
   NOT_FOUND: "Not found.",
+  ACTIVITY_NOT_FOUND: "That activity was not found.",
+  ACTIVITY_FORBIDDEN: "You cannot change this activity.",
+  INVALID_ACTIVITY_TYPE: "Choose a valid activity type.",
+  INVALID_ACTIVITY_RELATION: "The related company, contact, and deal do not match.",
+  TASK_NOT_FOUND: "That task was not found.",
+  TASK_FORBIDDEN: "You cannot change this task.",
+  INVALID_TASK_ASSIGNEE: "Assignee must be an active member of this organization.",
+  TASK_ALREADY_COMPLETED: "This task is already complete.",
+  TASK_ALREADY_OPEN: "This task is already open.",
+  INVALID_TASK_RELATION: "The related company, contact, and deal do not match.",
+  INVALID_DUE_DATE: "Enter a valid due date.",
+  CROSS_TENANT_RELATION: "Related records must belong to this organization.",
 };
 
 export function crmErrorMessage(code?: string, fallback?: string) {

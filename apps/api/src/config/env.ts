@@ -16,6 +16,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
   INVITATION_TTL_DAYS: z.coerce.number().int().positive().default(7),
   INVITATION_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
+  TASK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
 });
 
 function parseEnv() {
@@ -42,6 +43,7 @@ export const env = {
   supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY,
   invitationTtlDays: parsed.INVITATION_TTL_DAYS,
   invitationResendCooldownSeconds: parsed.INVITATION_RESEND_COOLDOWN_SECONDS,
+  taskReminderHours: parsed.TASK_REMINDER_HOURS,
 };
 
 export const isDev = env.nodeEnv !== "production";

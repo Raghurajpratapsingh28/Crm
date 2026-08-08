@@ -386,5 +386,86 @@ describe("deals and pipeline", () => {
     });
     expect(jobs.length).toBeGreaterThan(0);
     expect(jobs.some((job) => JSON.stringify(job.payload).includes(deal.body.data.id))).toBe(true);
+    expect(jobs.some((job) => JSON.stringify(job.payload).includes("DEAL_ASSIGNED"))).toBe(true);
+  });
+
+  it("does not notify the actor for self-assignment", async () => {
+    const ctx = await orgWithRoles();
+    const seed = await seedDeal(ctx.organizationId, ctx.admin.id);
+    const deal = await request(app)
+      .post("/api/v1/deals")
+      .set(auth(ctx.admin.token))
+      .send({ name: "Mine", companyId: seed.company.id, primaryContactId: seed.contact.id, ownerId: ctx.admin.id });
+    await prisma.job.deleteMany({ where: { organizationId: ctx.organizationId, type: "notification.fanout" } });
+    const assigned = await request(app)
+      .post(`/api/v1/deals/${deal.body.data.id}/assign`)
+      .set(auth(ctx.admin.token))
+      .send({ ownerId: ctx.admin.id });
+    expect(assigned.status).toBe(200);
+    const jobs = await prisma.job.count({
+      where: { organizationId: ctx.organizationId, type: "notification.fanout" },
+    });
+    expect(jobs).toBe(0);
+  });
+
+  it("enqueues historical stage jobs for negotiation, won, and lost", async () => {
+    const ctx = await orgWithRoles();
+    const seed = await seedDeal(ctx.organizationId, ctx.admin.id);
+    const created = await request(app)
+      .post("/api/v1/deals")
+      .set(auth(ctx.admin.token))
+      .send({ name: "Acme Enterprise Contract", companyId: seed.company.id, primaryContactId: seed.contact.id });
+    await request(app)
+      .post(`/api/v1/deals/${created.body.data.id}/assign`)
+      .set(auth(ctx.admin.token))
+      .send({ ownerId: ctx.member.id });
+
+    const negotiation = seed.pipeline.stages.find((s) => s.name === "Negotiation")!;
+    const moved = await request(app)
+      .post(`/api/v1/deals/${created.body.data.id}/stage`)
+      .set(auth(ctx.admin.token))
+      .send({ stageId: negotiation.id });
+    expect(moved.status).toBe(200);
+
+    const history = await prisma.dealStageHistory.findFirstOrThrow({
+      where: { dealId: created.body.data.id },
+      orderBy: { changedAt: "desc" },
+    });
+    const jobs = await prisma.job.findMany({
+      where: { organizationId: ctx.organizationId, type: "notification.fanout" },
+      orderBy: { createdAt: "desc" },
+    });
+    const stageJob = jobs.find((job) => JSON.stringify(job.payload).includes("DEAL_STAGE_CHANGED"));
+    expect(stageJob).toBeTruthy();
+    expect(JSON.stringify(stageJob?.payload)).toContain(history.id);
+    expect(JSON.stringify(stageJob?.payload)).toContain("Negotiation");
+
+    const won = seed.pipeline.stages.find((s) => s.isWon)!;
+    await request(app)
+      .post(`/api/v1/deals/${created.body.data.id}/stage`)
+      .set(auth(ctx.admin.token))
+      .send({ stageId: won.id });
+    const afterWon = await prisma.job.findMany({
+      where: { organizationId: ctx.organizationId, type: "notification.fanout" },
+    });
+    expect(afterWon.some((job) => JSON.stringify(job.payload).includes("DEAL_WON"))).toBe(true);
+
+    const lostDeal = await request(app)
+      .post("/api/v1/deals")
+      .set(auth(ctx.admin.token))
+      .send({ name: "Lost deal", companyId: seed.company.id, primaryContactId: seed.contact.id });
+    await request(app)
+      .post(`/api/v1/deals/${lostDeal.body.data.id}/assign`)
+      .set(auth(ctx.admin.token))
+      .send({ ownerId: ctx.member.id });
+    const lost = seed.pipeline.stages.find((s) => s.isLost)!;
+    await request(app)
+      .post(`/api/v1/deals/${lostDeal.body.data.id}/stage`)
+      .set(auth(ctx.admin.token))
+      .send({ stageId: lost.id, lostReason: "Budget constraints" });
+    const afterLost = await prisma.job.findMany({
+      where: { organizationId: ctx.organizationId, type: "notification.fanout" },
+    });
+    expect(afterLost.some((job) => JSON.stringify(job.payload).includes("DEAL_LOST"))).toBe(true);
   });
 });

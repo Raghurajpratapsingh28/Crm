@@ -18,10 +18,10 @@ import {
 import { scopedWhere } from "../../lib/tenant-scope.js";
 import { writeAudit } from "../../services/audit.service.js";
 import {
-  assigneeScope,
+  activityScope,
   assertVisibleOwned,
-  authorScope,
   ownerScope,
+  taskScope,
 } from "../../services/authorization.service.js";
 import { fail } from "../../utils/errors.js";
 
@@ -183,7 +183,7 @@ export async function getCompany(actor: Actor, id: string) {
       take: 50,
     }),
     prisma.activity.findMany({
-      where: { organizationId: actor.organizationId, companyId: company.id, ...authorScope(actor.role, actor.userId) },
+      where: { organizationId: actor.organizationId, companyId: company.id, ...activityScope(actor.role, actor.userId) },
       select: {
         id: true,
         type: true,
@@ -196,7 +196,7 @@ export async function getCompany(actor: Actor, id: string) {
       take: 20,
     }),
     prisma.task.findMany({
-      where: { organizationId: actor.organizationId, companyId: company.id, ...assigneeScope(actor.role, actor.userId) },
+      where: { organizationId: actor.organizationId, companyId: company.id, ...taskScope(actor.role, actor.userId) },
       select: {
         id: true,
         title: true,

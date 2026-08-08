@@ -43,11 +43,11 @@ Stage changes are **not** accepted through generic PATCH (protected fields).
 
 ## Notifications
 
-Owner assignment and Won/Lost/reopen events enqueue `notification.fanout` jobs in the same database transaction. The Go worker inserts the in-app notification. The actor is not notified about their own action.
+Owner assignment, moves into Negotiation, Won, Lost, and reopen enqueue `notification.fanout` in the same database transaction as the deal write. The job carries `stageHistoryId` and historical stage names. The Go worker inserts the in-app notification. The actor is not notified about their own action. Recipients are the deal owner only.
 
 ## Concurrency
 
-`transitionDealStage` locks the deal row (`SELECT … FOR UPDATE`) so two simultaneous moves serialize. Stage history remains a consistent chain. Repeating the current `stageId` is a no-op.
+`transitionDealStage` locks the deal row (`SELECT … FOR UPDATE`) so two simultaneous moves serialize. Stage history remains a consistent chain. Repeating the current `stageId` is a no-op and does not create another `STATUS_CHANGE` activity. Successful moves write deal, history, activity, and audit together.
 
 ## Security
 

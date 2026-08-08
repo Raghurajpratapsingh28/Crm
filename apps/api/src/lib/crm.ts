@@ -219,6 +219,31 @@ export async function resolveOwnerId(input: {
   return member.userId;
 }
 
+export async function resolveAssigneeId(input: {
+  organizationId: string;
+  actorId: string;
+  role: Role;
+  requestedAssigneeId?: string | null;
+}) {
+  const requested = input.requestedAssigneeId ?? undefined;
+  if (!requested || requested === input.actorId) return input.actorId;
+  if (!canAssignResource(input.role)) {
+    throw fail(403, "INSUFFICIENT_PERMISSION", "you cannot assign tasks to other users");
+  }
+  const member = await prisma.organizationMember.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      userId: requested,
+      status: "ACTIVE",
+    },
+    select: { userId: true },
+  });
+  if (!member) {
+    throw fail(400, "INVALID_TASK_ASSIGNEE", "assignee must be an active member of this organization");
+  }
+  return member.userId;
+}
+
 export function isUniqueConstraint(error: unknown) {
   return (
     typeof error === "object" &&

@@ -4,7 +4,7 @@ import { createInvitationToken, hashInvitationToken, invitationHashesEqual } fro
 import { prisma } from "../../lib/prisma.js";
 import { enqueue } from "../../lib/queue.js";
 import { writeAudit } from "../../services/audit.service.js";
-import { notify } from "../../services/notification.service.js";
+import { enqueueNotification } from "../../services/notification.service.js";
 import { conflict, fail, notFound } from "../../utils/errors.js";
 import { normalizeEmail, parseDepartment, parseRole } from "./team.util.js";
 
@@ -59,17 +59,20 @@ function acceptUrl(rawToken: string) {
   return `${env.webUrl.replace(/\/$/, "")}/invitations/${rawToken}`;
 }
 
-async function enqueueInviteEmail(input: {
-  organizationId: string;
-  organizationName: string;
-  invitationId: string;
-  email: string;
-  role: Role;
-  department: Department | null;
-  inviterName: string;
-  expiresAt: Date;
-  rawToken: string;
-}) {
+async function enqueueInviteEmail(
+  client: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    organizationName: string;
+    invitationId: string;
+    email: string;
+    role: Role;
+    department: Department | null;
+    inviterName: string;
+    expiresAt: Date;
+    rawToken: string;
+  },
+) {
   await enqueue(
     "email.invite",
     {
@@ -82,7 +85,7 @@ async function enqueueInviteEmail(input: {
       expiresAt: input.expiresAt.toISOString(),
       acceptUrl: acceptUrl(input.rawToken),
     },
-    { organizationId: input.organizationId },
+    { organizationId: input.organizationId, client },
   );
 }
 
@@ -164,19 +167,19 @@ export async function createInvitation(input: {
       metadata: { email, role, department },
     });
 
-    return invitation;
-  });
+    await enqueueInviteEmail(tx, {
+      organizationId: input.organizationId,
+      organizationName: organization.name,
+      invitationId: invitation.id,
+      email,
+      role,
+      department,
+      inviterName: inviter.fullName || inviter.email,
+      expiresAt,
+      rawToken: token.raw,
+    });
 
-  await enqueueInviteEmail({
-    organizationId: input.organizationId,
-    organizationName: organization.name,
-    invitationId: created.id,
-    email,
-    role,
-    department,
-    inviterName: inviter.fullName || inviter.email,
-    expiresAt,
-    rawToken: token.raw,
+    return invitation;
   });
 
   return publicInvitation(created);
@@ -322,11 +325,13 @@ export async function acceptInvitation(rawToken: string, actor: { userId: string
       metadata: { invitationId: invitation.id, role: invitation.role, email: invitation.email },
     });
 
-    await notify(tx, {
+    await enqueueNotification(tx, {
       organizationId: invitation.organizationId,
       userId: invitation.invitedById,
       type: "TEAM_MEMBER_JOINED",
       payload: { memberId: membership.id, userId: actor.userId, email: invitation.email, role: invitation.role },
+      skipUserId: actor.userId,
+      dedupeKey: `TEAM_MEMBER_JOINED:${invitation.id}:${actor.userId}`,
     });
 
     return { membership, organizationName: invitation.organization.name };
@@ -375,19 +380,18 @@ export async function resendInvitation(organizationId: string, actorId: string, 
       entityId: invitation.id,
       metadata: { email: invitation.email },
     });
+    await enqueueInviteEmail(tx, {
+      organizationId,
+      organizationName: next.organization.name,
+      invitationId: next.id,
+      email: next.email,
+      role: next.role,
+      department: next.department,
+      inviterName: next.invitedBy.fullName || next.invitedBy.email,
+      expiresAt,
+      rawToken: token.raw,
+    });
     return next;
-  });
-
-  await enqueueInviteEmail({
-    organizationId,
-    organizationName: updated.organization.name,
-    invitationId: updated.id,
-    email: updated.email,
-    role: updated.role,
-    department: updated.department,
-    inviterName: updated.invitedBy.fullName || updated.invitedBy.email,
-    expiresAt,
-    rawToken: token.raw,
   });
 
   return publicInvitation(updated);

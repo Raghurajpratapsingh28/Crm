@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "go run ./cmd/worker",
-    "build": "go build -o bin/worker ./cmd/worker"
+    "build": "go build -o bin/worker ./cmd/worker",
+    "test": "go test ./..."
   }
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConfirmDialog, ErrorState, LoadingState } from "../../../../components/crm/ui";
+import { ActivityTimeline } from "../../../../components/followups/activity-timeline";
+import { TaskPanel } from "../../../../components/followups/task-panel";
 import { useAuth } from "../../../../components/auth-provider";
 import { apiFetch, ApiRequestError } from "../../../../lib/api";
 import { contactName, formatEmployees, type CompanyRecord } from "../../../../lib/crm";
@@ -12,7 +14,7 @@ import { PERMISSIONS } from "../../../../lib/permissions";
 
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { session, can } = useAuth();
+  const { session, user, can } = useAuth();
   const router = useRouter();
   const token = session?.access_token;
   const [company, setCompany] = useState<CompanyRecord | null>(null);
@@ -122,25 +124,25 @@ export default function CompanyDetailPage() {
                 <ul className="plain-list">
                   {company.deals?.map((deal) => (
                     <li key={deal.id}>
-                      {deal.name} · {deal.stage?.name ?? "Stage"} · {deal.amount ?? "—"}
+                      <Link href={`/deals/${deal.id}`}>{deal.name}</Link> · {deal.stage?.name ?? "Stage"} · {deal.amount ?? "—"}
                     </li>
                   ))}
                 </ul>
               )}
             </section>
 
-            <section>
-              <h2>Activity</h2>
-              {(company.activities ?? []).length === 0 ? <p>No activity yet.</p> : (
-                <ul className="plain-list">
-                  {company.activities?.map((activity) => (
-                    <li key={activity.id}>
-                      {activity.type}: {activity.content || "—"}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <ActivityTimeline
+              token={token}
+              canCreate={can(PERMISSIONS.ACTIVITIES_CREATE)}
+              filters={{ companyId: company.id }}
+            />
+            <TaskPanel
+              token={token}
+              currentUser={user ? { id: user.id, name: user.user_metadata?.full_name ?? user.email ?? "You" } : undefined}
+              canCreate={can(PERMISSIONS.TASKS_CREATE)}
+              canAssign={can(PERMISSIONS.DEALS_ASSIGN)}
+              filters={{ companyId: company.id }}
+            />
 
             <section>
               <h2>Notes</h2>

@@ -230,9 +230,8 @@ describe("MEMBER", () => {
       .send({ title: "My task" });
     expect(task.status).toBe(201);
     const taskUpdate = await request(app)
-      .patch(`/api/v1/tasks/${task.body.data.id}`)
-      .set("Authorization", `Bearer ${ctx.member.token}`)
-      .send({ status: "DONE" });
+      .post(`/api/v1/tasks/${task.body.data.id}/complete`)
+      .set("Authorization", `Bearer ${ctx.member.token}`);
     expect(taskUpdate.status).toBe(200);
   });
 

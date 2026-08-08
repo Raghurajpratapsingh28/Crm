@@ -1,15 +1,12 @@
-import { PERMISSIONS, type ActivityType } from "@crm/types";
+import { PERMISSIONS } from "@crm/types";
 import { Router } from "express";
-import { prisma } from "../../lib/prisma.js";
-import { scopedWhere } from "../../lib/tenant-scope.js";
+import { rejectProtectedFields } from "../../lib/dto.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { requirePermission } from "../../middleware/permissions.js";
 import { requireTenant, tenantId, type TenantRequest } from "../../middleware/tenant.js";
-import { assertVisibleAuthored, authorScope } from "../../services/authorization.service.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { invalid, notFound, ok } from "../../utils/errors.js";
-
-const TYPES: ActivityType[] = ["CALL", "EMAIL", "MEETING", "NOTE", "STATUS_CHANGE"];
+import { notFound, ok } from "../../utils/errors.js";
+import { createActivity, deleteActivity, getActivity, listActivities, updateActivity } from "./activity.service.js";
 
 export const activitiesRouter: Router = Router();
 activitiesRouter.use(requireAuth, requireTenant);
@@ -22,30 +19,16 @@ function actor(req: TenantRequest) {
   return { organizationId, userId, role };
 }
 
+function param(value: string | undefined) {
+  if (!value) throw notFound();
+  return value;
+}
+
 activitiesRouter.get(
   "/",
   requirePermission(PERMISSIONS.ACTIVITIES_READ),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    const activities = await prisma.activity.findMany({
-      where: { organizationId, ...authorScope(role, userId) },
-      orderBy: { occurredAt: "desc" },
-    });
-    res.json(ok(activities));
-  }),
-);
-
-activitiesRouter.get(
-  "/:id",
-  requirePermission(PERMISSIONS.ACTIVITIES_READ),
-  asyncHandler(async (req, res) => {
-    const { organizationId, userId, role } = actor(req as TenantRequest);
-    const activity = await prisma.activity.findFirst({
-      where: scopedWhere(organizationId, { id: req.params.id }),
-    });
-    if (!activity) throw notFound();
-    assertVisibleAuthored(role, userId, activity.authorId);
-    res.json(ok(activity));
+    res.json(ok(await listActivities(actor(req as TenantRequest), req.query as Record<string, unknown>)));
   }),
 );
 
@@ -53,24 +36,33 @@ activitiesRouter.post(
   "/",
   requirePermission(PERMISSIONS.ACTIVITIES_CREATE),
   asyncHandler(async (req, res) => {
-    const { organizationId, userId } = actor(req as TenantRequest);
-    const body = req.body as { type?: ActivityType; content?: string; dealId?: string };
-    if (!body.type || !TYPES.includes(body.type)) throw invalid("type is invalid");
-    if (body.dealId) {
-      const deal = await prisma.deal.findFirst({
-        where: scopedWhere(organizationId, { id: body.dealId }),
-      });
-      if (!deal) throw notFound();
-    }
-    const activity = await prisma.activity.create({
-      data: {
-        organizationId,
-        type: body.type,
-        authorId: userId,
-        content: body.content?.trim() || null,
-        dealId: body.dealId,
-      },
-    });
+    rejectProtectedFields(req.body, ["authorId", "author_id"]);
+    const activity = await createActivity(actor(req as TenantRequest), (req.body ?? {}) as Record<string, unknown>);
     res.status(201).json(ok(activity));
+  }),
+);
+
+activitiesRouter.get(
+  "/:id",
+  requirePermission(PERMISSIONS.ACTIVITIES_READ),
+  asyncHandler(async (req, res) => {
+    res.json(ok(await getActivity(actor(req as TenantRequest), param(req.params.id))));
+  }),
+);
+
+activitiesRouter.patch(
+  "/:id",
+  requirePermission(PERMISSIONS.ACTIVITIES_UPDATE),
+  asyncHandler(async (req, res) => {
+    rejectProtectedFields(req.body, ["authorId", "author_id", "type", "dealId", "contactId", "companyId"]);
+    res.json(ok(await updateActivity(actor(req as TenantRequest), param(req.params.id), (req.body ?? {}) as Record<string, unknown>)));
+  }),
+);
+
+activitiesRouter.delete(
+  "/:id",
+  requirePermission(PERMISSIONS.ACTIVITIES_DELETE),
+  asyncHandler(async (req, res) => {
+    res.json(ok(await deleteActivity(actor(req as TenantRequest), param(req.params.id))));
   }),
 );

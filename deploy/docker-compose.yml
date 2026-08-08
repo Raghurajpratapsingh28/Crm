@@ -48,6 +48,9 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://crm:crm@postgres:5432/crm?schema=public
       WORKER_ID: compose-1
+      WORKER_HEALTH_PORT: "8081"
+      WORKER_CONCURRENCY: "10"
+      JOB_BATCH_SIZE: "20"
     depends_on:
       postgres:
         condition: service_healthy

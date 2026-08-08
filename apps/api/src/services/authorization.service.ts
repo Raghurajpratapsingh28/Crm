@@ -32,6 +32,31 @@ export function authorScope(role: Role, userId: string) {
   return hasTeamVisibility(role) ? {} : { authorId: userId };
 }
 
+export function activityScope(role: Role, userId: string) {
+  if (hasTeamVisibility(role)) return {};
+  return {
+    OR: [
+      { authorId: userId },
+      { deal: { ownerId: userId } },
+      { company: { ownerId: userId } },
+      { contact: { ownerId: userId } },
+    ],
+  };
+}
+
+export function taskScope(role: Role, userId: string) {
+  if (hasTeamVisibility(role)) return {};
+  return {
+    OR: [
+      { assigneeId: userId },
+      { createdById: userId },
+      { deal: { ownerId: userId } },
+      { company: { ownerId: userId } },
+      { contact: { ownerId: userId } },
+    ],
+  };
+}
+
 export function canAccessOwned(role: Role, userId: string, ownerId?: string | null) {
   if (hasTeamVisibility(role)) return true;
   return ownerId === userId;

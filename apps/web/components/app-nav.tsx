@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
+import { NotificationBell } from "./notifications/notification-bell";
 import { PERMISSIONS } from "../lib/permissions";
 
 const links = [
@@ -33,6 +34,7 @@ export function AppNav() {
           </Link>
         );
       })}
+      <NotificationBell />
       <LogoutButton />
     </nav>
   );

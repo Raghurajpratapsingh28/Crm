@@ -13,14 +13,47 @@ spec:
       labels:
         app: worker
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: worker
           image: crm-worker:latest
+          ports:
+            - containerPort: 8081
+              name: health
           env:
             - name: WORKER_ID
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: WORKER_HEALTH_PORT
+              value: "8081"
+            - name: WORKER_CONCURRENCY
+              value: "10"
+            - name: JOB_BATCH_SIZE
+              value: "20"
+            - name: JOB_POLL_INTERVAL
+              value: "2s"
+            - name: JOB_LOCK_TIMEOUT
+              value: "5m"
+            - name: SHUTDOWN_TIMEOUT
+              value: "25s"
           envFrom:
             - secretRef:
                 name: crm-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 20

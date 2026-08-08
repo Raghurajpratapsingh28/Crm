@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConfirmDialog, ErrorState, LoadingState } from "../../../../components/crm/ui";
+import { ActivityTimeline } from "../../../../components/followups/activity-timeline";
+import { TaskPanel } from "../../../../components/followups/task-panel";
 import { useAuth } from "../../../../components/auth-provider";
 import { apiFetch, ApiRequestError } from "../../../../lib/api";
 import { contactName, type ContactRecord } from "../../../../lib/crm";
@@ -12,7 +14,7 @@ import { PERMISSIONS } from "../../../../lib/permissions";
 
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { session, can } = useAuth();
+  const { session, user, can } = useAuth();
   const router = useRouter();
   const token = session?.access_token;
   const [contact, setContact] = useState<ContactRecord | null>(null);
@@ -118,36 +120,24 @@ export default function ContactDetailPage() {
                 <ul className="plain-list">
                   {contact.deals?.map((deal) => (
                     <li key={deal.id}>
-                      {deal.name} · {deal.stage?.name ?? "Stage"}
+                      <Link href={`/deals/${deal.id}`}>{deal.name}</Link> · {deal.stage?.name ?? "Stage"}
                     </li>
                   ))}
                 </ul>
               )}
             </section>
-            <section>
-              <h2>Activities</h2>
-              {(contact.activities ?? []).length === 0 ? <p>No activity yet.</p> : (
-                <ul className="plain-list">
-                  {contact.activities?.map((activity) => (
-                    <li key={activity.id}>
-                      {activity.type}: {activity.content || "—"}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            <section>
-              <h2>Tasks</h2>
-              {(contact.tasks ?? []).length === 0 ? <p>No tasks yet.</p> : (
-                <ul className="plain-list">
-                  {contact.tasks?.map((task) => (
-                    <li key={task.id}>
-                      {task.title} · {task.status}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <ActivityTimeline
+              token={token}
+              canCreate={can(PERMISSIONS.ACTIVITIES_CREATE)}
+              filters={{ contactId: contact.id, companyId: contact.companyId ?? undefined }}
+            />
+            <TaskPanel
+              token={token}
+              currentUser={user ? { id: user.id, name: user.user_metadata?.full_name ?? user.email ?? "You" } : undefined}
+              canCreate={can(PERMISSIONS.TASKS_CREATE)}
+              canAssign={can(PERMISSIONS.DEALS_ASSIGN)}
+              filters={{ contactId: contact.id, companyId: contact.companyId ?? undefined }}
+            />
           </>
         ) : null}
       </div>

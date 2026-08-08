@@ -110,4 +110,4 @@ apps/api/src/
   server.ts      listen + graceful shutdown
 ```
 
-The API stays request/response. Long-running work is a row in `jobs`; the Go worker claims it with `FOR UPDATE SKIP LOCKED`.
+The API stays request/response. Long-running work is a row in `jobs`; the Go worker claims it with `FOR UPDATE SKIP LOCKED`. See `docs/JOBS.md` and `docs/WORKER.md`.

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog, ErrorState, LoadingState } from "../../../../components/crm/ui";
 import { OwnerSelector } from "../../../../components/crm/fields";
 import { MoveStageDialog } from "../../../../components/deals/move-stage-dialog";
+import { ActivityTimeline } from "../../../../components/followups/activity-timeline";
+import { TaskPanel } from "../../../../components/followups/task-panel";
 import { useAuth } from "../../../../components/auth-provider";
 import { apiFetch, ApiRequestError } from "../../../../lib/api";
 import { formatMoney, type DealRecord } from "../../../../lib/deals";
@@ -30,8 +32,8 @@ export default function DealDetailPage() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [ownerOpen, setOwnerOpen] = useState(false);
   const [ownerId, setOwnerId] = useState("");
-  const [taskTitle, setTaskTitle] = useState("");
   const [pending, setPending] = useState(false);
+  const [timelineKey, setTimelineKey] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -71,29 +73,6 @@ export default function DealDetailPage() {
       setOwnerOpen(false);
     } catch (err) {
       setError(err instanceof ApiRequestError ? crmErrorMessage(err.code, err.message) : "Unable to change owner.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function addTask() {
-    if (!token || !deal || !taskTitle.trim() || pending) return;
-    setPending(true);
-    try {
-      await apiFetch("/api/v1/tasks", {
-        method: "POST",
-        token,
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          dealId: deal.id,
-          companyId: deal.companyId,
-          contactId: deal.primaryContactId,
-        }),
-      });
-      setTaskTitle("");
-      await refresh();
-    } catch (err) {
-      setError(err instanceof ApiRequestError ? crmErrorMessage(err.code, err.message) : "Unable to add task.");
     } finally {
       setPending(false);
     }
@@ -180,47 +159,20 @@ export default function DealDetailPage() {
               <h2>Description</h2>
               <p>{deal.description || "No description."}</p>
             </section>
-            <section>
-              <h2>Activity</h2>
-              {(deal.activities ?? []).length === 0 ? <p>No activity yet.</p> : (
-                <ul className="plain-list">
-                  {deal.activities?.map((activity) => (
-                    <li key={activity.id}>
-                      {activity.type}: {activity.content}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            <section>
-              <h2>Tasks</h2>
-              {(deal.tasks ?? []).length === 0 ? <p>No tasks yet.</p> : (
-                <ul className="plain-list">
-                  {deal.tasks?.map((task) => (
-                    <li key={task.id}>
-                      {task.title} · {task.status}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {can(PERMISSIONS.TASKS_CREATE) ? (
-                <form
-                  className="inline-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void addTask();
-                  }}
-                >
-                  <label>
-                    Add task
-                    <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Follow up next week" />
-                  </label>
-                  <button type="submit" disabled={pending || !taskTitle.trim()}>
-                    Add Task
-                  </button>
-                </form>
-              ) : null}
-            </section>
+            <ActivityTimeline
+              key={`activity-${timelineKey}`}
+              token={token}
+              canCreate={can(PERMISSIONS.ACTIVITIES_CREATE)}
+              filters={{ dealId: deal.id, companyId: deal.companyId, contactId: deal.primaryContactId ?? undefined }}
+            />
+            <TaskPanel
+              key={`tasks-${timelineKey}`}
+              token={token}
+              currentUser={user ? { id: user.id, name: user.user_metadata?.full_name ?? user.email ?? "You" } : undefined}
+              canCreate={can(PERMISSIONS.TASKS_CREATE)}
+              canAssign={can(PERMISSIONS.DEALS_ASSIGN)}
+              filters={{ dealId: deal.id, companyId: deal.companyId, contactId: deal.primaryContactId ?? undefined }}
+            />
             <section>
               <h2>Stage history</h2>
               {(deal.stageHistory ?? []).length === 0 ? <p>No stage history yet.</p> : (
@@ -273,7 +225,10 @@ export default function DealDetailPage() {
             body: JSON.stringify({ stageId, ...(lostReason ? { lostReason } : {}) }),
           })
             .then(() => refresh())
-            .then(() => setMoveOpen(false))
+            .then(() => {
+              setTimelineKey((value) => value + 1);
+              setMoveOpen(false);
+            })
             .catch((err) => {
               setError(err instanceof ApiRequestError ? crmErrorMessage(err.code, err.message) : "Unable to move deal.");
             })

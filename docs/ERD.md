@@ -155,16 +155,21 @@ erDiagram
     uuid company_id FK
     uuid contact_id FK
     uuid deal_id FK
+    string content
     timestamptz occurred_at
+    json metadata
   }
 
   tasks {
     uuid id PK
     uuid organization_id FK
     string title
+    string description
     uuid assignee_id FK
+    uuid created_by FK
     enum status
-    date due_date
+    timestamptz due_date
+    timestamptz completed_at
   }
 
   notifications {
@@ -172,6 +177,12 @@ erDiagram
     uuid organization_id FK
     uuid user_id FK
     enum type
+    string title
+    string message
+    string entity_type
+    string entity_id
+    json payload
+    string dedupe_key UK
     timestamptz read_at
   }
 
@@ -216,7 +227,17 @@ erDiagram
     uuid id PK
     uuid organization_id FK
     string type
+    json payload
     enum status
+    int attempts
+    int max_attempts
+    timestamptz available_at
+    timestamptz locked_at
+    string locked_by
+    timestamptz processed_at
+    timestamptz failed_at
+    string request_id
+    string error
   }
 ```
 

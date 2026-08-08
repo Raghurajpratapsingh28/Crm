@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/smtp"
 	"os"
 	"strings"
@@ -31,16 +31,16 @@ func (h Handler) Handle(_ context.Context, job jobs.Job) error {
 	if job.Type == jobs.EmailInvite {
 		return handleInvite(job)
 	}
-	log.Printf("email job %s type=%s", job.ID, job.Type)
+	slog.Info("email_job", "job_id", job.ID, "job_type", job.Type)
 	return nil
 }
 
 func handleInvite(job jobs.Job) error {
 	payload, err := ParseInvitePayload(job.Payload)
 	if err != nil {
-		return err
+		return jobs.Permanent(err)
 	}
-	log.Printf("email job %s type=%s %s", job.ID, job.Type, SafeInviteSummary(payload))
+	slog.Info("email_job", "job_id", job.ID, "job_type", job.Type, "summary", SafeInviteSummary(payload))
 	subject := fmt.Sprintf("You have been invited to join %s", payload.OrganizationName)
 	return sendMail(payload.Email, subject, RenderInviteEmail(payload))
 }
@@ -79,7 +79,7 @@ func RenderInviteEmail(payload InvitePayload) string {
 func sendMail(to, subject, body string) error {
 	host := os.Getenv("SMTP_HOST")
 	if host == "" {
-		log.Printf("email skipped (no SMTP_HOST) to=%s subject=%q", redactEmail(to), subject)
+		slog.Info("email_skipped", "reason", "no_smtp_host", "to", redactEmail(to), "subject", subject)
 		return nil
 	}
 	port := os.Getenv("SMTP_PORT")

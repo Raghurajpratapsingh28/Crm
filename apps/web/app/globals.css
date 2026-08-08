@@ -471,6 +471,191 @@ button.ghost,
   cursor: pointer;
 }
 
+.followup-section {
+  margin-top: 28px;
+}
+
+.timeline-group h3 {
+  margin: 16px 0 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.timeline li {
+  border-left: 2px solid var(--line);
+  padding: 0 0 4px 14px;
+}
+
+.timeline li.status-change {
+  border-left-color: var(--accent);
+}
+
+.timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.activity-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.task-cards {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.task-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.task-card.overdue,
+.task-status.overdue {
+  border-color: #b45309;
+}
+
+.task-status {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.task-status.done {
+  color: #166534;
+}
+
+.overdue-text,
+.task-status.overdue {
+  color: #b45309;
+}
+
+.notification-tray {
+  position: relative;
+  margin: 16px 0 8px;
+}
+
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 36px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #9f1239;
+  color: white;
+  font-size: 0.7rem;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notification-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 6px 0 0;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.notification-dropdown-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.notification-view-all {
+  display: block;
+  margin-top: 8px;
+  color: var(--accent);
+}
+
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification-list button,
+.notification-page-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.notification-list button.unread,
+.notification-page-list li.unread button {
+  font-weight: 600;
+}
+
+.notification-page-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.notification-page-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
 @media (max-width: 720px) {
   .shell {
     grid-template-columns: 1fr;

@@ -29,7 +29,7 @@ flowchart LR
 |---|---|---|---|
 | Web | `apps/web` | Pages, Supabase sign-in, call the API | Hold secrets, query Postgres, verify webhooks |
 | API | `apps/api` | REST, JWT verify, `organization_id` scope, Prisma writes, enqueue jobs, start checkout | Render UI, send email, reconcile payments |
-| Worker | `apps/worker` | Email, notification fan-out, payment reconcile/dunning, rollups, reminders | Serve HTTP to users |
+| Worker | `apps/worker` | Email, notification fan-out, payment reconcile/dunning, rollups, reminders, job retries | Serve product HTTP |
 | Auth | Supabase | Passwords, sessions, reset, later SSO | Store CRM records |
 | Payments | Razorpay + Stripe | Collect money | Be the source of truth for plan status — that is Postgres |
 
@@ -68,31 +68,37 @@ Hard rules:
 
 ## Jobs
 
-The API stays request/response. It inserts a `jobs` row; the worker claims it.
+The API stays request/response. It inserts a `jobs` row in the **same transaction** as the CRM write; the Go worker claims it later.
 
 ```mermaid
 flowchart LR
-  API["Express<br/>enqueue()"]
-  Jobs[("jobs table")]
-  W1["Go replica A"]
-  W2["Go replica B"]
+  Web["Next.js"]
+  API["Express API"]
+  PG[("PostgreSQL<br/>CRM + jobs + notifications")]
+  Worker["Go worker"]
+  Mail["Email provider"]
+  InApp["In-app notifications"]
 
-  API --> Jobs
-  W1 -->|"FOR UPDATE SKIP LOCKED"| Jobs
-  W2 -->|"FOR UPDATE SKIP LOCKED"| Jobs
+  Web --> API
+  API --> PG
+  Worker -->|"FOR UPDATE SKIP LOCKED"| PG
+  Worker --> InApp
+  Worker --> Mail
 ```
 
-Job type names are shared in spirit between `@crm/types` (`JobType`) and `apps/worker/internal/jobs`. Keep them in lockstep.
+See [docs/JOBS.md](./docs/JOBS.md), [docs/WORKER.md](./docs/WORKER.md), [docs/NOTIFICATIONS.md](./docs/NOTIFICATIONS.md), [docs/RELIABILITY.md](./docs/RELIABILITY.md).
+
+Job type names are shared between `@crm/types` (`JobType`) and `apps/worker/internal/jobs`. Keep them in lockstep.
 
 | Type | When |
 |---|---|
 | `email.invite` / `email.receipt` / `email.follow_up` | Outbound mail |
-| `notification.fanout` | In-app notification to one or more users |
+| `notification.fanout` | In-app notification (typed payload) |
 | `payments.reconcile` | After a verified Razorpay or Stripe webhook |
 | `payments.dunning` | Failed renewal |
 | `analytics.rollup` | Dashboard aggregates |
 | `deals.flag_stale` | Stage SLA |
-| `tasks.remind` | Overdue follow-ups |
+| `tasks.remind` | Upcoming and overdue task reminders |
 
 ## Payments
 
@@ -125,12 +131,26 @@ CRM opportunities are **`Deal`** rows scoped by `organization_id`, tied to a **`
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| API | `apps/api/src/modules/deals/deal.service.ts` | CRUD, search/filter/sort, owner assignment, probability rules (`STAGE_DEFAULT` vs `MANUAL`), transactional stage moves with `SELECT … FOR UPDATE`, immutable `DealStageHistory`, activities, audit; enqueue `notification.fanout` after commit-safe tx writes |
+| API | `apps/api/src/modules/deals/deal.service.ts` | CRUD, search/filter/sort, owner assignment, probability rules (`STAGE_DEFAULT` vs `MANUAL`), transactional stage moves with `SELECT … FOR UPDATE`, immutable `DealStageHistory`, activities, audit; enqueue `notification.fanout` in the same transaction |
 | API | `apps/api/src/modules/pipelines/pipeline-board.service.ts` | `GET …/kanban` and `GET …/summary` with tenant + owner visibility, SQL windowed cards, and weighted aggregates |
-| Worker | `apps/worker/internal/notifications` | Creates in-app notifications from `notification.fanout` jobs (idempotent on job id) |
+| Worker | `apps/worker/internal/notifications` | Creates in-app notifications from `notification.fanout` jobs (unique `dedupe_key`, active-member check) |
 | Web | `apps/web/app/(app)/pipeline`, `components/deals/*` | Kanban (dnd-kit), URL-backed filters, Lost/Won dialogs, optimistic drag with rollback, deal list/detail/create/edit |
 
-Stage changes **must** use `POST /api/v1/deals/:id/stage` (or `PATCH /:id/stage`), not generic deal PATCH. Lost requires a reason; Won/Lost timestamps clear on reopen. See [docs/DEALS.md](./docs/DEALS.md), [docs/PIPELINE.md](./docs/PIPELINE.md), [docs/KANBAN.md](./docs/KANBAN.md).
+Stage changes **must** use `POST /api/v1/deals/:id/stage` (or `PATCH /:id/stage`), not generic deal PATCH. Lost requires a reason; Won/Lost timestamps clear on reopen. Each successful stage change also writes an immutable `STATUS_CHANGE` activity in the same transaction. See [docs/DEALS.md](./docs/DEALS.md), [docs/PIPELINE.md](./docs/PIPELINE.md), [docs/KANBAN.md](./docs/KANBAN.md).
+
+## Activities, tasks, and reminders
+
+Activities record what happened. Tasks record what needs to happen. They share company/contact/deal relations and stay separate from `audit_logs`.
+
+| Layer | Location | Responsibility |
+|---|---|---|
+| API | `apps/api/src/modules/activities` | Tenant-scoped CRUD, search, follow-up-in-transaction, immutable `STATUS_CHANGE` |
+| API | `apps/api/src/modules/tasks` | CRUD, complete/reopen/assign, derived `isOverdue`, SQL overdue filter |
+| API | `apps/api/src/modules/tasks/task-reminders.service.ts` | Testable reminder/overdue sweep using unique `notifications.dedupe_key` |
+| Worker | `apps/worker/internal/tasks` | Production sweep on `tasks.remind` jobs and a ticker; `ON CONFLICT (dedupe_key) DO NOTHING` |
+| Web | `apps/web/components/followups/*`, `components/notifications/*` | Timeline, task cards, notification bell/page |
+
+Upcoming reminders use `TASK_REMINDER:{taskId}:{due ISO}`. Daily overdue notices use `TASK_OVERDUE:{taskId}:{YYYY-MM-DD}`. The reminder window is `TASK_REMINDER_HOURS` (default 24). See [docs/ACTIVITIES.md](./docs/ACTIVITIES.md), [docs/TASKS.md](./docs/TASKS.md), [docs/FOLLOW_UPS.md](./docs/FOLLOW_UPS.md).
 
 ## Monorepo
 
@@ -214,6 +234,6 @@ Secrets (`DATABASE_URL`, Supabase JWT, Razorpay, Stripe) live in `deploy/k8s/sec
 
 - **Web → API only.** No Prisma in Next.js. No service-role Supabase key in the browser.
 - **API → worker via the `jobs` table.** Do not call the worker over HTTP for MVP.
-- **Worker is idempotent on `job_id` / webhook `event_id`.** Replays must not double-charge or double-email.
+- **Worker is idempotent on `dedupe_key` / webhook `event_id`.** Replays must not double-notify or double-charge. Email is at-least-once.
 - **One pipeline per org in v1.** Deals move through stages; “Lead” is the first stage, not a second entity.
 - **Both payment providers stay behind one module.** UI picks a provider; the rest of the app reads `subscriptions.status`.

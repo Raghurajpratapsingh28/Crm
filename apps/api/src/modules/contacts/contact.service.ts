@@ -20,10 +20,10 @@ import {
 import { scopedWhere } from "../../lib/tenant-scope.js";
 import { writeAudit } from "../../services/audit.service.js";
 import {
-  assigneeScope,
+  activityScope,
   assertVisibleOwned,
-  authorScope,
   ownerScope,
+  taskScope,
 } from "../../services/authorization.service.js";
 import { conflict, fail } from "../../utils/errors.js";
 
@@ -230,7 +230,7 @@ export async function getContact(actor: Actor, id: string) {
       where: {
         organizationId: actor.organizationId,
         contactId: contact.id,
-        ...authorScope(actor.role, actor.userId),
+        ...activityScope(actor.role, actor.userId),
       },
       select: {
         id: true,
@@ -246,7 +246,7 @@ export async function getContact(actor: Actor, id: string) {
       where: {
         organizationId: actor.organizationId,
         contactId: contact.id,
-        ...assigneeScope(actor.role, actor.userId),
+        ...taskScope(actor.role, actor.userId),
       },
       select: {
         id: true,

@@ -2,7 +2,7 @@ import { DEFAULT_PIPELINE_NAME, DEFAULT_PIPELINE_STAGES } from "@crm/types";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAudit } from "../../services/audit.service.js";
-import { notify } from "../../services/notification.service.js";
+import { enqueueNotification } from "../../services/notification.service.js";
 import { forbidden, invalid, notFound } from "../../utils/errors.js";
 
 const CURRENCY = /^[A-Z]{3}$/;
@@ -174,11 +174,13 @@ export async function transferOwnership(organizationId: string, actorId: string,
       entityId: target.id,
       metadata: { fromUserId: actorId, toUserId: target.userId, actorRoleAfter: "MANAGER" },
     });
-    await notify(tx, {
+    await enqueueNotification(tx, {
       organizationId,
       userId: target.userId,
       type: "MEMBER_ROLE_CHANGED",
       payload: { event: "ownership_transferred", newRole: "ADMIN" },
+      skipUserId: actorId,
+      dedupeKey: `MEMBER_ROLE_CHANGED:${target.id}:OWNERSHIP:${actorId}`,
     });
 
     return {

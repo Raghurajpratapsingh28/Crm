@@ -19,11 +19,11 @@ import { scopedWhere } from "../../lib/tenant-scope.js";
 import { writeAudit } from "../../services/audit.service.js";
 import { enqueueNotification } from "../../services/notification.service.js";
 import {
-  assigneeScope,
+  activityScope,
   assertVisibleOwned,
-  authorScope,
   canAssignResource,
   ownerScope,
+  taskScope,
 } from "../../services/authorization.service.js";
 import { fail, forbidden } from "../../utils/errors.js";
 
@@ -167,13 +167,13 @@ export async function getDeal(actor: Actor, id: string) {
         },
       },
       activities: {
-        where: { ...authorScope(actor.role, actor.userId) },
+        where: { ...activityScope(actor.role, actor.userId) },
         orderBy: { occurredAt: "desc" },
         take: 50,
         include: { author: { select: { id: true, fullName: true } } },
       },
       tasks: {
-        where: { ...assigneeScope(actor.role, actor.userId) },
+        where: { ...taskScope(actor.role, actor.userId) },
         orderBy: { dueDate: "asc" },
         take: 50,
       },
@@ -342,9 +342,10 @@ export async function updateDeal(actor: Actor, id: string, body: Record<string, 
       await enqueueNotification(tx, {
         organizationId: actor.organizationId,
         userId: nextOwnerId,
-        type: "LEAD_ASSIGNED",
-        payload: { dealId: deal.id, name: deal.name, fromOwnerId: existing.ownerId, toOwnerId: nextOwnerId },
+        type: "DEAL_ASSIGNED",
+        payload: { dealId: deal.id, name: deal.name, companyName: deal.company?.name, fromOwnerId: existing.ownerId, toOwnerId: nextOwnerId },
         skipUserId: actor.userId,
+        dedupeKey: `DEAL_ASSIGNED:${deal.id}:${existing.ownerId}:${nextOwnerId}`,
       });
     } else if (suppliedProbability !== undefined && suppliedProbability !== existing.probability) {
       await writeAudit(tx, {
@@ -478,7 +479,7 @@ export async function transitionDealStage(
 
     const updated = await tx.deal.update({ where: { id: locked.id }, data, include: CARD_INCLUDE });
 
-    await tx.dealStageHistory.create({
+    const history = await tx.dealStageHistory.create({
       data: {
         organizationId: actor.organizationId,
         dealId: updated.id,
@@ -525,19 +526,23 @@ export async function transitionDealStage(
     });
     maybeFail("audit");
 
-    if (toStage.isWon || toStage.isLost || wasWon || wasLost) {
+    if (toStage.isWon || toStage.isLost || wasWon || wasLost || toStage.name === "Negotiation") {
+      const type = toStage.isWon ? "DEAL_WON" : toStage.isLost ? "DEAL_LOST" : "DEAL_STAGE_CHANGED";
       await enqueueNotification(tx, {
         organizationId: actor.organizationId,
         userId: updated.ownerId,
-        type: "DEAL_STAGE_CHANGED",
+        type,
         payload: {
           dealId: updated.id,
           name: updated.name,
+          companyName: updated.company?.name,
           fromStage: fromStage.name,
           toStage: toStage.name,
+          stageHistoryId: history.id,
           event: auditAction,
         },
         skipUserId: actor.userId,
+        dedupeKey: `DEAL_STAGE_CHANGED:${history.id}:${updated.ownerId}`,
       });
     }
     maybeFail("notify");

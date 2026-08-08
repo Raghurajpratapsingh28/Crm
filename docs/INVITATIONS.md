@@ -5,7 +5,7 @@
 ```text
 ADMIN
   → POST /api/v1/team/invitations
-  → hash token, store token_hash, enqueue email.invite
+  → hash token, store token_hash, enqueue email.invite in the same transaction
   → Go worker sends email (or skips if SMTP_HOST is unset)
   → Recipient opens /invitations/<token>
   → Sign in / sign up with the invited email
