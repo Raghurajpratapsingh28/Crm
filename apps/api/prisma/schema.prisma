@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  DEACTIVATED
+}
+
+enum Plan {
+  FREE
+  STARTER
+  GROWTH
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  STRIPE
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members       OrganizationMember[]
+  companies     Company[]
+  contacts      Contact[]
+  pipelines     Pipeline[]
+  deals         Deal[]
+  activities    Activity[]
+  tasks         Task[]
+  notifications Notification[]
+  subscription  Subscription?
+  invoices      Invoice[]
+
+  @@map("organizations")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  supabaseUserId  String   @unique @map("supabase_user_id")
+  fullName        String   @map("full_name")
+  avatarUrl       String?  @map("avatar_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  memberships     OrganizationMember[]
+  ownedContacts   Contact[]            @relation("ContactOwner")
+  ownedCompanies  Company[]            @relation("CompanyOwner")
+  ownedDeals      Deal[]               @relation("DealOwner")
+  activities      Activity[]
+  assignedTasks   Task[]               @relation("TaskAssignee")
+  createdTasks    Task[]               @relation("TaskCreator")
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  role           Role         @default(MEMBER)
+  department     String?
+  invitedBy      String?      @map("invited_by")
+  status         MemberStatus @default(INVITED)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@map("organization_members")
+}
+
+model Company {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  industry       String?
+  employeeCount  Int?     @map("employee_count")
+  website        String?
+  ownerId        String?  @map("owner_id")
+  tags           String[] @default([])
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  owner        User?        @relation("CompanyOwner", fields: [ownerId], references: [id])
+  contacts     Contact[]
+  deals        Deal[]
+
+  @@index([organizationId])
+  @@map("companies")
+}
+
+model Contact {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  email          String?
+  phone          String?
+  jobTitle       String?  @map("job_title")
+  companyId      String?  @map("company_id")
+  industry       String?
+  source         String?
+  ownerId        String   @map("owner_id")
+  tags           String[] @default([])
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  company      Company?     @relation(fields: [companyId], references: [id])
+  owner        User         @relation("ContactOwner", fields: [ownerId], references: [id])
+  deals        Deal[]
+
+  @@index([organizationId])
+  @@index([organizationId, email])
+  @@map("contacts")
+}
+
+model Pipeline {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String   @default("Sales")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  stages       PipelineStage[]
+  deals        Deal[]
+
+  @@index([organizationId])
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id         String  @id @default(uuid())
+  pipelineId String  @map("pipeline_id")
+  name       String
+  order      Int
+  isWon      Boolean @default(false) @map("is_won")
+  isLost     Boolean @default(false) @map("is_lost")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  deals    Deal[]
+
+  @@index([pipelineId, order])
+  @@map("pipeline_stages")
+}
+
+model Deal {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  name              String
+  companyId         String?   @map("company_id")
+  primaryContactId  String?   @map("primary_contact_id")
+  pipelineId        String    @map("pipeline_id")
+  stageId           String    @map("stage_id")
+  ownerId           String    @map("owner_id")
+  amount            Decimal?  @db.Decimal(14, 2)
+  expectedCloseDate DateTime? @map("expected_close_date") @db.Date
+  probability       Int?
+  lostReason        String?   @map("lost_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  company        Company?      @relation(fields: [companyId], references: [id])
+  primaryContact Contact?      @relation(fields: [primaryContactId], references: [id])
+  pipeline       Pipeline      @relation(fields: [pipelineId], references: [id])
+  stage          PipelineStage @relation(fields: [stageId], references: [id])
+  owner          User          @relation("DealOwner", fields: [ownerId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, stageId])
+  @@map("deals")
+}
+
+model Activity {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  type           String
+  relatedToType  String   @map("related_to_type")
+  relatedToId    String   @map("related_to_id")
+  authorId       String   @map("author_id")
+  content        String?
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  author       User         @relation(fields: [authorId], references: [id])
+
+  @@index([organizationId, relatedToType, relatedToId])
+  @@map("activities")
+}
+
+model Task {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  title          String
+  assigneeId     String     @map("assignee_id")
+  createdBy      String     @map("created_by")
+  relatedToType  String?    @map("related_to_type")
+  relatedToId    String?    @map("related_to_id")
+  dueDate        DateTime?  @map("due_date") @db.Date
+  status         TaskStatus @default(OPEN)
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  assignee     User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator      User         @relation("TaskCreator", fields: [createdBy], references: [id])
+
+  @@index([organizationId, assigneeId, status])
+  @@map("tasks")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  type      String
+  payload   Json
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  organizationId       String             @unique @map("organization_id")
+  provider             PaymentProvider
+  providerCustomerId   String             @map("provider_customer_id")
+  providerSubscriptionId String?          @map("provider_subscription_id")
+  status               SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id               String          @id @default(uuid())
+  organizationId   String          @map("organization_id")
+  provider         PaymentProvider
+  providerInvoiceId String         @map("provider_invoice_id")
+  amount           Decimal         @db.Decimal(14, 2)
+  currency         String
+  status           String
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([provider, providerInvoiceId])
+  @@index([organizationId])
+  @@map("invoices")
+}
+
+model WebhookEvent {
+  id         String          @id @default(uuid())
+  provider   PaymentProvider
+  eventId    String          @map("event_id")
+  eventType  String          @map("event_type")
+  payload    Json
+  processedAt DateTime?      @map("processed_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@unique([provider, eventId])
+  @@map("webhook_events")
+}
+
+/// Postgres-backed job queue. The Go worker claims rows with SKIP LOCKED.
+model Job {
+  id          String    @id @default(uuid())
+  type        String
+  payload     Json
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now()) @map("available_at")
+  lockedAt    DateTime? @map("locked_at")
+  lockedBy    String?   @map("locked_by")
+  processedAt DateTime? @map("processed_at")
+  error       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@map("jobs")
+}

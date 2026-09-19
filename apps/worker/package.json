@@ -1,0 +1,9 @@
+{
+  "name": "@crm/worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "go run ./cmd/worker",
+    "build": "go build -o bin/worker ./cmd/worker"
+  }
+}
