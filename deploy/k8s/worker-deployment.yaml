@@ -3,8 +3,15 @@ kind: Deployment
 metadata:
   name: worker
   namespace: crm
+  labels:
+    app: worker
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: worker
@@ -13,10 +20,18 @@ spec:
       labels:
         app: worker
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: worker
           image: crm-worker:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
               name: health
@@ -25,23 +40,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: WORKER_HEALTH_PORT
-              value: "8081"
-            - name: WORKER_CONCURRENCY
-              value: "10"
-            - name: JOB_BATCH_SIZE
-              value: "20"
-            - name: JOB_POLL_INTERVAL
-              value: "2s"
-            - name: JOB_LOCK_TIMEOUT
-              value: "5m"
-            - name: SHUTDOWN_TIMEOUT
-              value: "25s"
           envFrom:
+            - configMapRef:
+                name: crm-config
             - secretRef:
                 name: crm-secrets
             - secretRef:
                 name: crm-billing-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               cpu: 50m
@@ -52,10 +65,15 @@ spec:
           readinessProbe:
             httpGet:
               path: /ready
-              port: 8081
+              port: health
             periodSeconds: 10
+            timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /health
-              port: 8081
+              port: health
             periodSeconds: 20
+            timeoutSeconds: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}

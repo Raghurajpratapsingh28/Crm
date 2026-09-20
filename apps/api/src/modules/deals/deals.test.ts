@@ -255,6 +255,12 @@ describe("deals and pipeline", () => {
     const hidden = await request(app).get(`/api/v1/deals/${adminDeal.body.data.id}`).set(auth(ctx.member.token));
     expect(hidden.status).toBe(404);
 
+    const steal = await request(app)
+      .post("/api/v1/deals")
+      .set(auth(ctx.member.token))
+      .send({ name: "Linked to hidden company", companyId: seed.company.id, primaryContactId: seed.contact.id });
+    expect(steal.status).toBe(404);
+
     const memberCompany = await prisma.company.create({
       data: { organizationId: ctx.organizationId, name: "Member Co", ownerId: ctx.member.id },
     });

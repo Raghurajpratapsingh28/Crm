@@ -75,19 +75,21 @@ async function lockDeal(tx: Prisma.TransactionClient, organizationId: string, de
 }
 
 async function assertCompanyContact(
-  organizationId: string,
+  actor: Actor,
   companyId: string,
   primaryContactId: string,
 ) {
   const [company, contact] = await Promise.all([
-    prisma.company.findFirst({ where: scopedWhere(organizationId, { id: companyId }) }),
-    prisma.contact.findFirst({ where: scopedWhere(organizationId, { id: primaryContactId }) }),
+    prisma.company.findFirst({ where: scopedWhere(actor.organizationId, { id: companyId }) }),
+    prisma.contact.findFirst({ where: scopedWhere(actor.organizationId, { id: primaryContactId }) }),
   ]);
   if (!company) throw fail(400, "INVALID_COMPANY", "company must belong to this organization");
   if (!contact) throw fail(400, "INVALID_CONTACT", "contact must belong to this organization");
   if (contact.companyId && contact.companyId !== company.id) {
     throw fail(400, "INVALID_CONTACT", "primary contact must belong to the selected company");
   }
+  assertVisibleOwned(actor.role, actor.userId, company.ownerId);
+  assertVisibleOwned(actor.role, actor.userId, contact.ownerId);
   return { company, contact };
 }
 
@@ -195,7 +197,7 @@ export async function createDeal(actor: Actor, body: Record<string, unknown>) {
   const primaryContactId = String(body.primaryContactId ?? "");
   if (!companyId || !primaryContactId) throw fail(400, "INVALID", "companyId and primaryContactId are required");
 
-  await assertCompanyContact(actor.organizationId, companyId, primaryContactId);
+  await assertCompanyContact(actor, companyId, primaryContactId);
 
   const pipeline =
     body.pipelineId
@@ -288,7 +290,7 @@ export async function updateDeal(actor: Actor, id: string, body: Record<string, 
   if (body.companyId !== undefined) companyId = String(body.companyId);
   if (body.primaryContactId !== undefined) primaryContactId = String(body.primaryContactId);
   if (body.companyId !== undefined || body.primaryContactId !== undefined) {
-    await assertCompanyContact(actor.organizationId, companyId, primaryContactId);
+    await assertCompanyContact(actor, companyId, primaryContactId);
   }
 
   const nextOwnerId =

@@ -1,0 +1,28 @@
+# Postgres is ClusterIP-only. This policy additionally blocks other pods
+# in the namespace from reaching it. Do not add a cluster-wide default-deny
+# unless the CNI allows kubelet probes and the ingress controller namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-workloads
+  namespace: crm
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+        - podSelector:
+            matchLabels:
+              app: worker
+        - podSelector:
+            matchLabels:
+              app: migrate
+      ports:
+        - protocol: TCP
+          port: 5432

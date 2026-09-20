@@ -3,11 +3,15 @@ kind: Service
 metadata:
   name: web
   namespace: crm
+  labels:
+    app: web
 spec:
+  type: ClusterIP
   selector:
     app: web
   ports:
-    - port: 3000
+    - name: http
+      port: 3000
       targetPort: 3000
 ---
 apiVersion: apps/v1
@@ -15,8 +19,15 @@ kind: Deployment
 metadata:
   name: web
   namespace: crm
+  labels:
+    app: web
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: web
@@ -25,14 +36,64 @@ spec:
       labels:
         app: web
     spec:
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: web
           image: crm-web:latest
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 3000
+            - name: http
+              containerPort: 3000
           env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: crm-config
+                  key: NODE_ENV
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3000"
+            # NEXT_PUBLIC_* must also be supplied as Docker build-args.
+            # Runtime env does not rewrite the client bundle.
             - name: NEXT_PUBLIC_API_URL
               value: https://api.example.com
           envFrom:
             - secretRef:
                 name: crm-web-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12

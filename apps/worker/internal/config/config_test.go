@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,6 +20,22 @@ func TestLoadValidatesRequiredSettings(t *testing.T) {
 	}
 	if cfg.RetryBaseDelay != 30*time.Second {
 		t.Fatalf("base delay = %s", cfg.RetryBaseDelay)
+	}
+}
+
+func TestLoadStripsPrismaSchemaQuery(t *testing.T) {
+	t.Setenv("NODE_ENV", "production")
+	t.Setenv("DATABASE_URL", "postgresql://crm:crm@postgres:5432/crm?schema=public&sslmode=disable")
+	t.Setenv("WORKER_ID", "test-1")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(cfg.DatabaseURL, "schema=") {
+		t.Fatalf("schema query should be stripped: %s", cfg.DatabaseURL)
+	}
+	if !strings.Contains(cfg.DatabaseURL, "sslmode=disable") {
+		t.Fatalf("sslmode should remain: %s", cfg.DatabaseURL)
 	}
 }
 

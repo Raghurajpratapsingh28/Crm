@@ -1,6 +1,7 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma.js";
 import { scopedWhere } from "./tenant-scope.js";
+import { assertVisibleOwned } from "../services/authorization.service.js";
 import { fail } from "../utils/errors.js";
 
 export type CrmRelationIds = {
@@ -10,9 +11,9 @@ export type CrmRelationIds = {
 };
 
 export type LoadedCrmRelations = {
-  deal: { id: string; companyId: string; primaryContactId: string } | null;
-  contact: { id: string; companyId: string | null } | null;
-  company: { id: string } | null;
+  deal: { id: string; companyId: string; primaryContactId: string; ownerId: string } | null;
+  contact: { id: string; companyId: string | null; ownerId: string } | null;
+  company: { id: string; ownerId: string | null } | null;
 };
 
 export async function loadCrmRelations(
@@ -24,19 +25,19 @@ export async function loadCrmRelations(
     ids.dealId
       ? client.deal.findFirst({
           where: scopedWhere(organizationId, { id: ids.dealId }),
-          select: { id: true, companyId: true, primaryContactId: true },
+          select: { id: true, companyId: true, primaryContactId: true, ownerId: true },
         })
       : Promise.resolve(null),
     ids.contactId
       ? client.contact.findFirst({
           where: scopedWhere(organizationId, { id: ids.contactId }),
-          select: { id: true, companyId: true },
+          select: { id: true, companyId: true, ownerId: true },
         })
       : Promise.resolve(null),
     ids.companyId
       ? client.company.findFirst({
           where: scopedWhere(organizationId, { id: ids.companyId }),
-          select: { id: true },
+          select: { id: true, ownerId: true },
         })
       : Promise.resolve(null),
   ]);
@@ -46,6 +47,15 @@ export async function loadCrmRelations(
   if (ids.companyId && !company) throw fail(400, "CROSS_TENANT_RELATION", "company must belong to this organization");
 
   return { deal, contact, company };
+}
+
+export function assertActorCanLinkRelations(
+  actor: { role: Role; userId: string },
+  relations: LoadedCrmRelations,
+) {
+  if (relations.deal) assertVisibleOwned(actor.role, actor.userId, relations.deal.ownerId);
+  if (relations.contact) assertVisibleOwned(actor.role, actor.userId, relations.contact.ownerId);
+  if (relations.company) assertVisibleOwned(actor.role, actor.userId, relations.company.ownerId);
 }
 
 export function assertCompatibleRelations(

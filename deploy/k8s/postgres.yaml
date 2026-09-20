@@ -1,11 +1,19 @@
+# In-cluster Postgres is for local/staging only.
+# Production should use managed PostgreSQL (RDS, Cloud SQL, Neon, Supabase DB)
+# with automated backups. Do not expose this Service outside the cluster.
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
   namespace: crm
+  labels:
+    app: postgres
 spec:
+  type: ClusterIP
   ports:
-    - port: 5432
+    - name: postgres
+      port: 5432
+      targetPort: 5432
   selector:
     app: postgres
 ---
@@ -30,13 +38,42 @@ spec:
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
+              name: postgres
           env:
             - name: POSTGRES_USER
-              value: crm
+              valueFrom:
+                secretKeyRef:
+                  name: crm-secrets
+                  key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
-              value: crm
+              valueFrom:
+                secretKeyRef:
+                  name: crm-secrets
+                  key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
-              value: crm
+              valueFrom:
+                secretKeyRef:
+                  name: crm-secrets
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "crm", "-d", "crm"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "crm", "-d", "crm"]
+            periodSeconds: 20
+            timeoutSeconds: 5
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

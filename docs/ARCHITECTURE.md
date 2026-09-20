@@ -72,7 +72,7 @@ Details: `docs/GLOBAL_SEARCH.md`. Shortcuts: `docs/KEYBOARD_SHORTCUTS.md`.
 - Success: `{ success: true, data }`.
 - Errors: `AppError` via `unauthorized` / `forbidden` / `invalid` / `fail`.
 - Pagination defaults to 25, max 100, except search (default 20, max 50).
-- Rate limits reuse `middleware/rate-limit.ts` (in-memory, per user).
+- Rate limits reuse `middleware/rate-limit.ts` (in-memory **per process**; not shared across API replicas).
 
 ## Observability
 

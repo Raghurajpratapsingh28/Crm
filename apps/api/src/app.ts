@@ -4,6 +4,7 @@ import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { requestId } from "./middleware/request-id.js";
 import { requestLogger } from "./middleware/request-logger.js";
+import { securityHeaders } from "./middleware/security-headers.js";
 import { activitiesRouter } from "./modules/activities/routes.js";
 import { analyticsRouter } from "./modules/analytics/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
@@ -25,7 +26,11 @@ export function createApp(): Express {
   const app = express();
 
   app.disable("x-powered-by");
+  if (env.nodeEnv === "production") {
+    app.set("trust proxy", 1);
+  }
   app.use(requestId);
+  app.use(securityHeaders);
   app.use(requestLogger);
   app.use(cors({ origin: env.webUrl, credentials: true }));
   app.use("/webhooks/stripe", stripeWebhookRouter);

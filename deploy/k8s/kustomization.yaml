@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: crm
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - migrate-job.yaml
+  - api-deployment.yaml
+  - worker-deployment.yaml
+  - web-deployment.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+images:
+  - name: crm-api
+    newTag: latest
+  - name: crm-web
+    newTag: latest
+  - name: crm-worker
+    newTag: latest

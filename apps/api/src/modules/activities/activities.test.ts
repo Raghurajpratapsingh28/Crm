@@ -162,6 +162,17 @@ describe("activities", () => {
     expect(deleted.status).toBe(200);
   });
 
+  it("blocks a MEMBER from attaching an activity to a hidden teammate deal", async () => {
+    const ctx = await orgWithRoles();
+    const hidden = await seedDeal(ctx.organizationId, ctx.admin.id);
+    const denied = await request(app)
+      .post("/api/v1/activities")
+      .set(auth(ctx.member.token))
+      .send({ type: "NOTE", content: "Should not attach", dealId: hidden.deal.id });
+    expect(denied.status).toBe(404);
+    expect(await prisma.activity.count({ where: { dealId: hidden.deal.id, authorId: ctx.member.id } })).toBe(0);
+  });
+
   it("blocks cross-tenant IDOR and MEMBER delete", async () => {
     const a = await orgWithRoles();
     const b = await orgWithRoles();

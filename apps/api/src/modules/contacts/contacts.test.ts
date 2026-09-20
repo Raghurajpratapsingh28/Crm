@@ -191,6 +191,13 @@ describe("contacts", () => {
       .post("/api/v1/contacts")
       .set(auth(b.admin.token))
       .send({ firstName: "Keep", lastName: "Secret" });
+    const adminCompany = await request(app).post("/api/v1/companies").set(auth(a.admin.token)).send({ name: "Hidden Co" });
+    const hiddenCompany = await request(app)
+      .post("/api/v1/contacts")
+      .set(auth(a.member.token))
+      .send({ firstName: "No", lastName: "Link", companyId: adminCompany.body.data.id });
+    expect(hiddenCompany.status).toBe(404);
+
     const memberOwned = await request(app)
       .post("/api/v1/contacts")
       .set(auth(a.member.token))

@@ -1,18 +1,47 @@
+# Run once per release before rolling the API/worker.
+# kubectl -n crm delete job prisma-migrate --ignore-not-found
+# kubectl apply -f deploy/k8s/migrate-job.yaml
+# kubectl -n crm wait --for=condition=complete job/prisma-migrate --timeout=180s
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: prisma-migrate
   namespace: crm
 spec:
+  backoffLimit: 1
   ttlSecondsAfterFinished: 300
   template:
+    metadata:
+      labels:
+        app: migrate
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: migrate
           image: crm-api:latest
-          command: ["npx", "prisma", "migrate", "deploy"]
+          imagePullPolicy: IfNotPresent
           workingDir: /app
+          command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
+            - configMapRef:
+                name: crm-config
             - secretRef:
                 name: crm-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

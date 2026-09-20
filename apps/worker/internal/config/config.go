@@ -2,14 +2,27 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func containsSSLMode(url string) bool {
-	return strings.Contains(strings.ToLower(url), "sslmode=")
+func containsSSLMode(raw string) bool {
+	return strings.Contains(strings.ToLower(raw), "sslmode=")
+}
+
+// postgresURLForDriver drops Prisma-only query params (schema=) that lib/pq rejects.
+func postgresURLForDriver(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	query := parsed.Query()
+	query.Del("schema")
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 type Config struct {
@@ -33,7 +46,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	url := os.Getenv("DATABASE_URL")
+	url := postgresURLForDriver(os.Getenv("DATABASE_URL"))
 	if url == "" {
 		if os.Getenv("NODE_ENV") == "production" {
 			return Config{}, fmt.Errorf("DATABASE_URL is required")

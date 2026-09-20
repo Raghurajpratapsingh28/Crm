@@ -25,6 +25,22 @@ const envSchema = z.object({
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),
 });
 
+const WEAK_SECRET = /^(dev-change-me|replace-me|change-me|secret|password|test)$/i;
+
+function assertProductionEnv(data: z.infer<typeof envSchema>) {
+  if (data.NODE_ENV !== "production") return;
+  if (!data.DATABASE_URL.startsWith("postgres")) {
+    throw new Error("DATABASE_URL must be a PostgreSQL connection string");
+  }
+  if (WEAK_SECRET.test(data.SUPABASE_JWT_SECRET) && process.env.ALLOW_INSECURE_WEB_URL !== "true") {
+    throw new Error("SUPABASE_JWT_SECRET must be the project JWT secret in production");
+  }
+  const allowInsecure = process.env.ALLOW_INSECURE_WEB_URL === "true";
+  if (!allowInsecure && !/^https:\/\//.test(data.WEB_URL) && !/localhost|127\.0\.0\.1/.test(data.WEB_URL)) {
+    throw new Error("WEB_URL must be https in production (set ALLOW_INSECURE_WEB_URL=true only for local compose)");
+  }
+}
+
 function parseEnv() {
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
@@ -33,6 +49,7 @@ function parseEnv() {
       .join("\n");
     throw new Error(`Invalid environment variables:\n${details}`);
   }
+  assertProductionEnv(result.data);
   return result.data;
 }
 

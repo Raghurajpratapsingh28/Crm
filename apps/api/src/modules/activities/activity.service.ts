@@ -10,7 +10,7 @@ import {
   parseOccurredAt,
 } from "../../lib/activity-task.js";
 import { paginationMeta, parsePagination, parseSortOrder, whitelistSort } from "../../lib/crm.js";
-import { assertCompatibleRelations, loadCrmRelations } from "../../lib/crm-relations.js";
+import { assertActorCanLinkRelations, assertCompatibleRelations, loadCrmRelations } from "../../lib/crm-relations.js";
 import { scopedWhere } from "../../lib/tenant-scope.js";
 import { writeAudit } from "../../services/audit.service.js";
 import { activityScope } from "../../services/authorization.service.js";
@@ -47,12 +47,13 @@ function mapActivity(row: Prisma.ActivityGetPayload<{ include: typeof DETAIL_INC
   };
 }
 
-async function assertRelations(organizationId: string, ids: { dealId?: string | null; contactId?: string | null; companyId?: string | null }) {
+async function assertRelations(actor: Actor, ids: { dealId?: string | null; contactId?: string | null; companyId?: string | null }) {
   if (!ids.dealId && !ids.contactId && !ids.companyId) {
     throw fail(400, "INVALID_ACTIVITY_RELATION", "activity must be linked to a deal, contact, or company");
   }
-  const relations = await loadCrmRelations(organizationId, ids);
+  const relations = await loadCrmRelations(actor.organizationId, ids);
   assertCompatibleRelations(relations, "INVALID_ACTIVITY_RELATION");
+  assertActorCanLinkRelations(actor, relations);
   return relations;
 }
 
@@ -110,7 +111,7 @@ export async function createActivity(actor: Actor, body: Record<string, unknown>
   const dealId = body.dealId ? String(body.dealId) : null;
   const contactId = body.contactId ? String(body.contactId) : null;
   const companyId = body.companyId ? String(body.companyId) : null;
-  await assertRelations(actor.organizationId, { dealId, contactId, companyId });
+  await assertRelations(actor, { dealId, contactId, companyId });
 
   const followUp = body.followUp && typeof body.followUp === "object" ? (body.followUp as Record<string, unknown>) : null;
   const wantsFollowUp = Boolean(followUp && (followUp.title || followUp.create));
@@ -193,6 +194,7 @@ export async function deleteActivity(actor: Actor, id: string) {
   });
   if (!existing) throw fail(404, "ACTIVITY_NOT_FOUND", "Activity not found");
   if (existing.type === "STATUS_CHANGE") throw forbidden("System stage-change activities cannot be deleted");
+  if (actor.role === "MEMBER" && existing.authorId !== actor.userId) throw fail(404, "ACTIVITY_NOT_FOUND", "Activity not found");
 
   await prisma.$transaction(async (tx) => {
     await writeAudit(tx, {

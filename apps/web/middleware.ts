@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/auth/callback",
+  "/health",
 ];
 
 function isPublic(pathname: string) {

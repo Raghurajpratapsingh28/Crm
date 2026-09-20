@@ -1,8 +1,10 @@
 {
   "extends": "@crm/tsconfig/node.json",
   "compilerOptions": {
-    "noEmit": true,
-    "outDir": "dist"
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true
   },
   "include": ["src"]
 }

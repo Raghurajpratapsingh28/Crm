@@ -84,15 +84,16 @@ function contactWrite(body: Record<string, unknown>) {
   };
 }
 
-async function assertCompanyInTenant(organizationId: string, companyId: string | null | undefined) {
+async function assertCompanyInTenant(actor: Actor, companyId: string | null | undefined) {
   if (!companyId) return null;
   const company = await prisma.company.findFirst({
-    where: scopedWhere(organizationId, { id: companyId }),
-    select: { id: true },
+    where: scopedWhere(actor.organizationId, { id: companyId }),
+    select: { id: true, ownerId: true },
   });
   if (!company) {
     throw fail(400, "INVALID_COMPANY_ASSOCIATION", "company must belong to this organization");
   }
+  assertVisibleOwned(actor.role, actor.userId, company.ownerId);
   return company;
 }
 
@@ -267,7 +268,7 @@ export async function createContact(actor: Actor, body: Record<string, unknown>)
   const fields = contactWrite(body);
   const firstName = fields.firstName ?? requiredName(undefined, "firstName");
   const lastName = fields.lastName ?? requiredName(undefined, "lastName");
-  await assertCompanyInTenant(actor.organizationId, fields.companyId ?? null);
+  await assertCompanyInTenant(actor, fields.companyId ?? null);
   const ownerId = await resolveOwnerId({
     organizationId: actor.organizationId,
     actorId: actor.userId,
@@ -328,7 +329,7 @@ export async function updateContact(actor: Actor, id: string, body: Record<strin
 
   const fields = contactWrite(body);
   if (fields.companyId !== undefined) {
-    await assertCompanyInTenant(actor.organizationId, fields.companyId);
+    await assertCompanyInTenant(actor, fields.companyId);
   }
 
   const nextOwnerId =

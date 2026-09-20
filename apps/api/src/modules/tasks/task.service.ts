@@ -9,7 +9,7 @@ import {
   taskSearchWhere,
 } from "../../lib/activity-task.js";
 import { normalizeNotes, paginationMeta, parsePagination, parseSortOrder, resolveAssigneeId, whitelistSort } from "../../lib/crm.js";
-import { assertCompatibleRelations, loadCrmRelations } from "../../lib/crm-relations.js";
+import { assertActorCanLinkRelations, assertCompatibleRelations, loadCrmRelations } from "../../lib/crm-relations.js";
 import { scopedWhere } from "../../lib/tenant-scope.js";
 import { writeAudit } from "../../services/audit.service.js";
 import { enqueueNotification } from "../../services/notification.service.js";
@@ -51,9 +51,10 @@ function mapTask(row: Prisma.TaskGetPayload<{ include: typeof DETAIL_INCLUDE }>,
   };
 }
 
-async function assertRelations(organizationId: string, ids: { dealId?: string | null; contactId?: string | null; companyId?: string | null }) {
-  const relations = await loadCrmRelations(organizationId, ids);
+async function assertRelations(actor: Actor, ids: { dealId?: string | null; contactId?: string | null; companyId?: string | null }) {
+  const relations = await loadCrmRelations(actor.organizationId, ids);
   assertCompatibleRelations(relations, "INVALID_TASK_RELATION");
+  assertActorCanLinkRelations(actor, relations);
   return relations;
 }
 
@@ -121,7 +122,7 @@ export async function createTaskInTx(
   const dealId = relations?.dealId ?? (body.dealId ? String(body.dealId) : null);
   const contactId = relations?.contactId ?? (body.contactId ? String(body.contactId) : null);
   const companyId = relations?.companyId ?? (body.companyId ? String(body.companyId) : null);
-  if (!relations) await assertRelations(actor.organizationId, { dealId, contactId, companyId });
+  if (!relations) await assertRelations(actor, { dealId, contactId, companyId });
 
   const assigneeId = await resolveAssigneeId({
     organizationId: actor.organizationId,
@@ -175,7 +176,7 @@ export async function updateTask(actor: Actor, id: string, body: Record<string, 
   const contactId = body.contactId !== undefined ? (body.contactId ? String(body.contactId) : null) : existing.contactId;
   const companyId = body.companyId !== undefined ? (body.companyId ? String(body.companyId) : null) : existing.companyId;
   if (body.dealId !== undefined || body.contactId !== undefined || body.companyId !== undefined) {
-    await assertRelations(actor.organizationId, { dealId, contactId, companyId });
+    await assertRelations(actor, { dealId, contactId, companyId });
   }
 
   let assigneeId = existing.assigneeId;

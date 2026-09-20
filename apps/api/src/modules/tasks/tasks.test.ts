@@ -154,6 +154,13 @@ describe("tasks", () => {
     expect((await request(app).post(`/api/v1/tasks/${foreign.body.data.id}/complete`).set(auth(a.admin.token))).status).toBe(404);
     expect((await request(app).delete(`/api/v1/tasks/${foreign.body.data.id}`).set(auth(a.admin.token))).status).toBe(404);
 
+    const hidden = await seedDeal(a.organizationId, a.admin.id);
+    const hiddenTask = await request(app)
+      .post("/api/v1/tasks")
+      .set(auth(a.member.token))
+      .send({ title: "On hidden deal", dealId: hidden.deal.id });
+    expect(hiddenTask.status).toBe(404);
+
     const own = await request(app).post("/api/v1/tasks").set(auth(a.member.token)).send({ title: "Mine" });
     const assign = await request(app)
       .post(`/api/v1/tasks/${own.body.data.id}/assign`)

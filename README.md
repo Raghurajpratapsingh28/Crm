@@ -31,7 +31,9 @@ pnpm install
 pnpm db:push
 ```
 
-`pnpm install` generates the Prisma client. Edit `.env` with real Supabase keys before signup/login. Never put `SUPABASE_SERVICE_ROLE_KEY` in a `NEXT_PUBLIC_` variable. See [`docs/AUTH.md`](./docs/AUTH.md).
+`pnpm install` generates the Prisma client. Edit `.env` with real Supabase keys before signup/login. Never put `SUPABASE_SERVICE_ROLE_KEY` in a `NEXT_PUBLIC_` variable. See [`docs/AUTH.md`](./docs/AUTH.md). Prefer `pnpm db:migrate` / `pnpm db:migrate:deploy` over `pnpm db:push` once you care about migration history (always in staging/production).
+
+## Development
 
 ## Development
 
@@ -93,7 +95,7 @@ Full image stack (needs a filled `.env`):
 docker compose -f deploy/docker-compose.yml --profile stack up --build
 ```
 
-Kubernetes templates: `deploy/k8s/`. Liveness uses `/health`, readiness uses `/ready`.
+Kubernetes templates: `deploy/k8s/`. Liveness uses `/health`, readiness uses `/ready` (API/worker). Web exposes `GET /health`. Production deploy, backups, and rollback: [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md), [`docs/BACKUP_AND_RECOVERY.md`](./docs/BACKUP_AND_RECOVERY.md), [`docs/PRODUCTION_CHECKLIST.md`](./docs/PRODUCTION_CHECKLIST.md).
 
 ## API layout
 
