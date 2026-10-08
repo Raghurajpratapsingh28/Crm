@@ -125,6 +125,8 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   pending,
   disabled,
+  hideActions,
+  className,
   onConfirm,
   onClose,
 }: {
@@ -135,6 +137,8 @@ export function ConfirmDialog({
   cancelLabel?: string;
   pending?: boolean;
   disabled?: boolean;
+  hideActions?: boolean;
+  className?: string;
   onConfirm?: () => void;
   onClose: () => void;
 }) {
@@ -142,10 +146,13 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (!open) return;
-    const node = dialogRef.current?.querySelector<HTMLElement>("button, a, input, select, textarea");
+    const node = dialogRef.current?.querySelector<HTMLElement>("button, a, input, select, textarea, [tabindex]:not([tabindex='-1'])");
     node?.focus();
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -156,7 +163,7 @@ export function ConfirmDialog({
     <div className="dialog-backdrop" onClick={onClose}>
       <div
         ref={dialogRef}
-        className="dialog"
+        className={className ? `dialog ${className}` : "dialog"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
@@ -164,16 +171,18 @@ export function ConfirmDialog({
       >
         <h2 id="dialog-title">{title}</h2>
         {children}
-        <div className="actions">
-          {onConfirm ? (
-            <button type="button" disabled={pending || disabled} onClick={onConfirm}>
-              {pending ? "Working…" : confirmLabel}
+        {hideActions ? null : (
+          <div className="actions">
+            {onConfirm ? (
+              <button type="button" disabled={pending || disabled} onClick={onConfirm}>
+                {pending ? "Working…" : confirmLabel}
+              </button>
+            ) : null}
+            <button type="button" className="secondary" onClick={onClose}>
+              {cancelLabel}
             </button>
-          ) : null}
-          <button type="button" className="secondary" onClick={onClose}>
-            {cancelLabel}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

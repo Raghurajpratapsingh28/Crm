@@ -38,6 +38,8 @@ spec:
           envFrom:
             - secretRef:
                 name: crm-secrets
+            - secretRef:
+                name: crm-billing-secrets
           readinessProbe:
             httpGet:
               path: /ready

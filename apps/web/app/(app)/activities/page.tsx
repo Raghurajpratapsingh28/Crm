@@ -111,6 +111,7 @@ function ActivitiesList() {
           emptyTitle="No activity yet"
           emptyBody="Record a call, meeting, email, or note to start building the timeline."
           emptyAction={createAction}
+          onRowClick={(row) => router.push(`/activities/${row.id}`)}
         />
         <Pagination
           page={data?.pagination.page ?? 1}

@@ -19,9 +19,10 @@ erDiagram
   organizations ||--o{ activities : "has"
   organizations ||--o{ tasks : "has"
   organizations ||--o{ notifications : "has"
-  organizations ||--o| subscriptions : "bills"
+  organizations ||--o{ subscriptions : "bills"
   organizations ||--o{ invoices : "has"
   organizations ||--o{ payment_events : "has"
+  billing_plans ||--o{ subscriptions : "catalog"
   organizations ||--o{ audit_logs : "has"
   organizations ||--o{ jobs : "queues"
 
@@ -186,13 +187,24 @@ erDiagram
     timestamptz read_at
   }
 
+  billing_plans {
+    uuid id PK
+    string key UK
+    string name
+    char currency
+    decimal monthly_price
+    decimal yearly_price
+  }
+
   subscriptions {
     uuid id PK
-    uuid organization_id FK_UK
+    uuid organization_id FK
+    uuid plan_id FK
     enum provider
     enum status
     decimal amount
     char currency
+    enum billing_interval
   }
 
   invoices {
@@ -255,8 +267,9 @@ erDiagram
 | Auth | `users.id` = Supabase UUID; no password columns |
 | Money | `Decimal(14,2)` plus explicit `Char(3)` currency |
 | Org locale | `organizations.timezone` (IANA) and `organizations.currency` |
-| One subscription | `subscriptions.organization_id` unique |
+| One open subscription | partial unique `organization_id` where status is open |
 | Payment idempotency | unique `(provider, provider_event_id)` |
+| Billing FKs | `ON DELETE RESTRICT` so org delete cannot drop financial history |
 | Contact email | unique `(organization_id, email)` |
 | Pipeline names | unique `(organization_id, name)` and `(pipeline_id, order)` |
 | Deal links | required FKs to company, primary contact, pipeline, stage, owner |

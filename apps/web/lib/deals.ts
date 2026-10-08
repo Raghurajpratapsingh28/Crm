@@ -57,11 +57,13 @@ export interface DealRecord extends DealCard {
 
 export const LOST_REASONS = ["PRICE", "TIMING", "COMPETITOR", "NO_BUDGET", "GHOSTED", "OTHER"] as const;
 
-export function formatMoney(amount: number | null | undefined, currency = "USD") {
-  if (amount === null || amount === undefined) return "—";
+export function formatMoney(amount: number | string | null | undefined, currency = "USD") {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const n = typeof amount === "number" ? amount : Number(amount);
+  if (!Number.isFinite(n)) return "—";
   try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
   } catch {
-    return `${currency} ${amount}`;
+    return `${currency} ${n}`;
   }
 }

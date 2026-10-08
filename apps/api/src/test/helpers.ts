@@ -79,6 +79,7 @@ export async function cleanupOrganization(organizationId: string) {
   await prisma.organizationInvitation.deleteMany({ where: { organizationId } });
   await prisma.auditLog.deleteMany({ where: { organizationId } });
   await prisma.paymentEvent.deleteMany({ where: { organizationId } });
+  await prisma.billingCheckout.deleteMany({ where: { organizationId } });
   await prisma.invoice.deleteMany({ where: { organizationId } });
   await prisma.notification.deleteMany({ where: { organizationId } });
   await prisma.task.deleteMany({ where: { organizationId } });

@@ -6,7 +6,7 @@ In-app notifications are tenant- and recipient-scoped rows. Email is a separate 
 
 Prisma `NotificationType` / `@crm/types` `NotificationType`:
 
-`LEAD_ASSIGNED`, `DEAL_ASSIGNED`, `DEAL_STAGE_CHANGED`, `DEAL_WON`, `DEAL_LOST`, `TASK_ASSIGNED`, `TASK_REMINDER`, `FOLLOW_UP_OVERDUE`, `TEAM_MEMBER_JOINED`, `MEMBER_ROLE_CHANGED`, `MEMBER_STATUS_CHANGED`, plus reserved billing types.
+`LEAD_ASSIGNED`, `DEAL_ASSIGNED`, `DEAL_STAGE_CHANGED`, `DEAL_WON`, `DEAL_LOST`, `TASK_ASSIGNED`, `TASK_REMINDER`, `FOLLOW_UP_OVERDUE`, `TEAM_MEMBER_JOINED`, `MEMBER_ROLE_CHANGED`, `MEMBER_STATUS_CHANGED`, `SUBSCRIPTION_ACTIVATED`, `SUBSCRIPTION_RENEWED`, `SUBSCRIPTION_CANCELED`, `SUBSCRIPTION_PAST_DUE`, `PAYMENT_FAILED`, `INVOICE_AVAILABLE`, `PAYMENT_RECEIVED`.
 
 Copy lives in `apps/api/src/lib/notification-copy.ts` (enqueue) and is mirrored in the Go worker for reminder sweeps and older jobs without title/message.
 

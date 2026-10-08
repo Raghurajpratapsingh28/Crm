@@ -75,17 +75,23 @@ describe("ADMIN", () => {
       .send({ name: "Admin Org" });
     expect(org.status).toBe(200);
 
+    const plans = await request(app)
+      .get("/api/v1/billing/plans")
+      .set("Authorization", `Bearer ${ctx.admin.token}`);
+    expect(plans.status).toBe(200);
+    const planId = plans.body.data.plans[0].id as string;
     const billing = await request(app)
       .post("/api/v1/billing/checkout")
       .set("Authorization", `Bearer ${ctx.admin.token}`)
-      .send({ provider: "STRIPE" });
+      .set("Idempotency-Key", `rbac-${ctx.organizationId}`)
+      .send({ planId, provider: "STRIPE", billingInterval: "MONTH" });
     expect(billing.status).toBe(201);
 
     const audit = await request(app)
       .get("/api/v1/audit")
       .set("Authorization", `Bearer ${ctx.admin.token}`);
     expect(audit.status).toBe(200);
-    expect(audit.body.data.some((row: { action: string }) => row.action === "BILLING_CHANGED")).toBe(true);
+    expect(audit.body.data.some((row: { action: string }) => row.action === "BILLING_CHECKOUT_CREATED")).toBe(true);
   });
 
   it("can invite, change roles, and deactivate without removing the last admin", async () => {

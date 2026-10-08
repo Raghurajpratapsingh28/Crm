@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { NotificationBell } from "./notifications/notification-bell";
+import { SearchTrigger } from "./search/command-palette";
 import { PERMISSIONS } from "../lib/permissions";
 
 const links = [
@@ -13,7 +14,7 @@ const links = [
   { href: "/pipeline", label: "Pipeline", permission: PERMISSIONS.PIPELINE_READ },
   { href: "/tasks", label: "Tasks", permission: PERMISSIONS.TASKS_READ },
   { href: "/activities", label: "Activities", permission: PERMISSIONS.ACTIVITIES_READ },
-  { href: "/analytics", label: "Analytics", permission: PERMISSIONS.ANALYTICS_TEAM },
+  { href: "/analytics", label: "Analytics", permission: PERMISSIONS.ANALYTICS_READ },
   { href: "/team", label: "Team", permission: PERMISSIONS.USERS_READ },
   { href: "/billing", label: "Billing", permission: PERMISSIONS.BILLING_READ },
   { href: "/settings", label: "Settings", permission: PERMISSIONS.ORGANIZATION_READ },
@@ -25,6 +26,7 @@ export function AppNav() {
   return (
     <nav>
       <strong>CRM</strong>
+      <SearchTrigger />
       {links.map((link) => {
         const visible = "show" in link ? link.show : can(link.permission);
         if (!visible) return null;

@@ -1,51 +1,63 @@
 import type { PaymentProvider } from "@crm/types";
-import type { Prisma } from "@prisma/client";
-import { Router } from "express";
-import { prisma } from "../../lib/prisma.js";
-import { enqueue } from "../../lib/queue.js";
+import { Router, raw, type Request } from "express";
+import { rateLimit } from "../../middleware/rate-limit.js";
+import { ingestWebhook } from "../billing/billing.service.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { AppError } from "../../utils/errors.js";
+import { fail } from "../../utils/errors.js";
 
-export const paymentsRouter: Router = Router();
-
-paymentsRouter.post(
-  "/webhooks/razorpay",
-  asyncHandler(async (req, res) => {
-    const eventId = String(req.header("x-razorpay-event-id") ?? crypto.randomUUID());
-    await persistAndEnqueue("RAZORPAY", eventId, req.body);
-    res.json({ received: true });
-  }),
-);
-
-paymentsRouter.post(
-  "/webhooks/stripe",
-  asyncHandler(async (req, res) => {
-    const eventId = String((req.body as { id?: string } | undefined)?.id ?? crypto.randomUUID());
-    await persistAndEnqueue("STRIPE", eventId, req.body);
-    res.json({ received: true });
-  }),
-);
-
-async function persistAndEnqueue(provider: PaymentProvider, eventId: string, payload: unknown) {
-  const body = payload as { organizationId?: string; organization_id?: string } | null;
-  const organizationId = body?.organizationId ?? body?.organization_id;
-  if (!organizationId) {
-    throw new AppError(400, "INVALID", "organizationId is required on payment events");
+function headerMap(req: Request) {
+  const headers: Record<string, string> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (typeof value === "string") headers[key] = value;
+    else if (Array.isArray(value) && value[0]) headers[key] = value[0];
   }
-
-  const event = await prisma.paymentEvent.upsert({
-    where: { provider_providerEventId: { provider, providerEventId: eventId } },
-    create: {
-      organizationId,
-      provider,
-      providerEventId: eventId,
-      eventType: String((payload as { type?: string } | null)?.type ?? "unknown"),
-      payload: (payload ?? {}) as Prisma.InputJsonValue,
-    },
-    update: {},
-  });
-
-  if (!event.processedAt) {
-    await enqueue("payments.reconcile", { paymentEventId: event.id, provider });
-  }
+  return headers;
 }
+
+function rawBody(req: Request) {
+  if (Buffer.isBuffer(req.body)) return req.body;
+  if (typeof req.body === "string") return Buffer.from(req.body);
+  throw fail(400, "INVALID_WEBHOOK", "Webhook body must be raw");
+}
+
+async function handle(req: Request, provider: PaymentProvider) {
+  const signature = String(
+    req.header("stripe-signature") ?? req.header("x-razorpay-signature") ?? req.header("x-signature") ?? "",
+  );
+  return ingestWebhook({
+    provider,
+    raw: rawBody(req),
+    signature,
+    headers: headerMap(req),
+  });
+}
+
+const webhookLimit = rateLimit({
+  name: "billing-webhooks",
+  windowMs: 60_000,
+  max: 120,
+  key: (req) => req.ip ?? "webhook",
+});
+
+export const stripeWebhookRouter: Router = Router();
+stripeWebhookRouter.use(raw({ type: "application/json", limit: "256kb" }));
+stripeWebhookRouter.use(webhookLimit);
+stripeWebhookRouter.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    res.json(await handle(req, "STRIPE"));
+  }),
+);
+
+export const razorpayWebhookRouter: Router = Router();
+razorpayWebhookRouter.use(raw({ type: "application/json", limit: "256kb" }));
+razorpayWebhookRouter.use(webhookLimit);
+razorpayWebhookRouter.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    res.json(await handle(req, "RAZORPAY"));
+  }),
+);
+
+/** @deprecated Mounted only if a caller still uses the old router. Prefer the raw webhook routers. */
+export const paymentsRouter: Router = Router();

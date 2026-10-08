@@ -1,10 +1,5 @@
-import { Placeholder } from "../placeholder";
+import { BillingPage } from "../../../components/billing/billing-page";
 
 export default function Page() {
-  return (
-    <Placeholder
-      title="Billing"
-      note="ADMIN only. Choose Razorpay (INR / India) or Stripe (international), then POST /billing/checkout."
-    />
-  );
+  return <BillingPage />;
 }

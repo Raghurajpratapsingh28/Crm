@@ -90,7 +90,7 @@ export async function listTasks(actor: Actor, query: Record<string, unknown>) {
         }
       : {}),
     ...(filters.overdue ? { status: "OPEN", dueDate: { lt: now } } : {}),
-    ...(filters.search ? { OR: taskSearchWhere(filters.search) } : {}),
+    ...(filters.search ? { AND: [{ OR: taskSearchWhere(filters.search) }] } : {}),
   };
 
   const [total, items] = await prisma.$transaction([

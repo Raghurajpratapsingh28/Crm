@@ -40,6 +40,8 @@ spec:
           envFrom:
             - secretRef:
                 name: crm-secrets
+            - secretRef:
+                name: crm-billing-secrets
           resources:
             requests:
               cpu: 50m

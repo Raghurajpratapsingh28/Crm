@@ -15,8 +15,9 @@ import { dealsRouter } from "./modules/deals/routes.js";
 import { healthRouter } from "./modules/health/routes.js";
 import { notificationsRouter } from "./modules/notifications/routes.js";
 import { organizationsRouter } from "./modules/organizations/routes.js";
-import { paymentsRouter } from "./modules/payments/routes.js";
+import { razorpayWebhookRouter, stripeWebhookRouter } from "./modules/payments/routes.js";
 import { pipelinesRouter } from "./modules/pipelines/routes.js";
+import { searchRouter } from "./modules/search/search.routes.js";
 import { tasksRouter } from "./modules/tasks/routes.js";
 import { teamRouter } from "./modules/team/routes.js";
 
@@ -27,6 +28,8 @@ export function createApp(): Express {
   app.use(requestId);
   app.use(requestLogger);
   app.use(cors({ origin: env.webUrl, credentials: true }));
+  app.use("/webhooks/stripe", stripeWebhookRouter);
+  app.use("/webhooks/razorpay", razorpayWebhookRouter);
   app.use(express.json({ limit: "1mb" }));
 
   app.use(healthRouter);
@@ -41,9 +44,9 @@ export function createApp(): Express {
   app.use("/api/v1/activities", activitiesRouter);
   app.use("/api/v1/notifications", notificationsRouter);
   app.use("/api/v1/analytics", analyticsRouter);
+  app.use("/api/v1/search", searchRouter);
   app.use("/api/v1/billing", billingRouter);
   app.use("/api/v1/audit", auditRouter);
-  app.use(paymentsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

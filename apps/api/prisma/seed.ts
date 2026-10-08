@@ -63,6 +63,7 @@ async function main() {
   await prisma.job.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.paymentEvent.deleteMany();
+  await prisma.billingCheckout.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.task.deleteMany();
@@ -363,15 +364,56 @@ async function main() {
     ],
   });
 
+  const pro = await prisma.billingPlan.upsert({
+    where: { key: "pro" },
+    update: {},
+    create: {
+      key: "pro",
+      name: "Pro",
+      description: "Analytics, search, and higher limits for growing teams.",
+      active: true,
+      currency: "INR",
+      monthlyPrice: "1999.00",
+      yearlyPrice: "19990.00",
+      stripePriceIdMonth: "price_test_pro_month",
+      stripePriceIdYear: "price_test_pro_year",
+      razorpayPlanIdMonth: "plan_test_pro_month",
+      razorpayPlanIdYear: "plan_test_pro_year",
+      features: ["Unlimited users", "Analytics", "Priority support"],
+      entitlement: Plan.GROWTH,
+    },
+  });
+  await prisma.billingPlan.upsert({
+    where: { key: "starter" },
+    update: {},
+    create: {
+      key: "starter",
+      name: "Starter",
+      description: "Pipeline, contacts, and a single sales team.",
+      active: true,
+      currency: "INR",
+      monthlyPrice: "999.00",
+      yearlyPrice: "9990.00",
+      stripePriceIdMonth: "price_test_starter_month",
+      stripePriceIdYear: "price_test_starter_year",
+      razorpayPlanIdMonth: "plan_test_starter_month",
+      razorpayPlanIdYear: "plan_test_starter_year",
+      features: ["3 users", "Pipeline", "Email notifications"],
+      entitlement: Plan.STARTER,
+    },
+  });
+
   await prisma.subscription.create({
     data: {
       organizationId: IDS.org,
+      planId: pro.id,
       provider: PaymentProvider.RAZORPAY,
       providerCustomerId: "cust_northwind_rzp",
       providerSubscriptionId: "sub_northwind_rzp",
       status: SubscriptionStatus.ACTIVE,
-      amount: "2999.00",
+      amount: "1999.00",
       currency: "INR",
+      billingInterval: "MONTH",
       currentPeriodStart: new Date("2026-09-01T00:00:00.000Z"),
       currentPeriodEnd: new Date("2026-10-01T00:00:00.000Z"),
     },
@@ -395,6 +437,7 @@ async function main() {
       providerEventId: "evt_rzp_seed_001",
       eventType: "invoice.paid",
       payload: { id: "evt_rzp_seed_001", type: "invoice.paid" },
+      status: "PROCESSED",
       processedAt: new Date("2026-09-01T00:05:00.000Z"),
     },
   });

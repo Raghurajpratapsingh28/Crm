@@ -35,4 +35,4 @@ spec:
               value: https://api.example.com
           envFrom:
             - secretRef:
-                name: crm-secrets
+                name: crm-web-secrets

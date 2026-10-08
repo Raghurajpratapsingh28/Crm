@@ -18,7 +18,21 @@ export type TaskStatus = "OPEN" | "DONE";
 
 export type PaymentProvider = "STRIPE" | "RAZORPAY";
 
-export type SubscriptionStatus = "INCOMPLETE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+export type SubscriptionStatus =
+  | "INCOMPLETE"
+  | "TRIALING"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "UNPAID"
+  | "PAUSED"
+  | "EXPIRED";
+
+export type InvoiceStatus = "DRAFT" | "OPEN" | "PAID" | "VOID" | "UNCOLLECTIBLE" | "FAILED";
+
+export type BillingInterval = "MONTH" | "YEAR";
+
+export type PaymentEventStatus = "RECEIVED" | "PROCESSED" | "IGNORED" | "FAILED";
 
 /** Job types the Express API enqueues and the Go worker consumes. */
 export type JobType =
@@ -28,6 +42,9 @@ export type JobType =
   | "notification.fanout"
   | "payments.reconcile"
   | "payments.dunning"
+  | "payments.event"
+  | "payments.subscription"
+  | "payments.invoice"
   | "analytics.rollup"
   | "deals.flag_stale"
   | "tasks.remind";
@@ -47,7 +64,13 @@ export type NotificationType =
   | "PAYMENT_RECEIVED"
   | "TEAM_MEMBER_JOINED"
   | "MEMBER_ROLE_CHANGED"
-  | "MEMBER_STATUS_CHANGED";
+  | "MEMBER_STATUS_CHANGED"
+  | "SUBSCRIPTION_ACTIVATED"
+  | "SUBSCRIPTION_RENEWED"
+  | "SUBSCRIPTION_CANCELED"
+  | "SUBSCRIPTION_PAST_DUE"
+  | "PAYMENT_FAILED"
+  | "INVOICE_AVAILABLE";
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
@@ -96,7 +119,24 @@ export type ApiErrorCode =
   | "TASK_ALREADY_OPEN"
   | "INVALID_TASK_RELATION"
   | "INVALID_DUE_DATE"
-  | "CROSS_TENANT_RELATION";
+  | "CROSS_TENANT_RELATION"
+  | "INVALID_DATE_RANGE"
+  | "INVALID_TEAM"
+  | "INVALID_PIPELINE"
+  | "ANALYTICS_FORBIDDEN"
+  | "BILLING_NOT_CONFIGURED"
+  | "PLAN_NOT_FOUND"
+  | "PLAN_INACTIVE"
+  | "SUBSCRIPTION_ALREADY_ACTIVE"
+  | "SUBSCRIPTION_NOT_FOUND"
+  | "PROVIDER_NOT_SUPPORTED"
+  | "CHECKOUT_CREATION_FAILED"
+  | "PAYMENT_PROVIDER_ERROR"
+  | "INVALID_WEBHOOK"
+  | "DUPLICATE_WEBHOOK"
+  | "INVOICE_NOT_FOUND"
+  | "CANNOT_CANCEL_SUBSCRIPTION"
+  | "CANNOT_REACTIVATE_SUBSCRIPTION";
 
 /** `id` is the Supabase `auth.users.id`. */
 export interface AuthUser {
@@ -268,6 +308,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     PERMISSIONS.TASKS_READ,
     PERMISSIONS.TASKS_CREATE,
     PERMISSIONS.TASKS_UPDATE,
+    PERMISSIONS.ANALYTICS_READ,
     PERMISSIONS.NOTIFICATIONS_READ,
   ],
 };
@@ -299,3 +340,233 @@ export const DEFAULT_PIPELINE_STAGES: ReadonlyArray<{
   { name: "Won", key: "won", order: 6, probability: 100, isWon: true, isLost: false },
   { name: "Lost", key: "lost", order: 7, probability: 0, isWon: false, isLost: true },
 ];
+
+export type AnalyticsGroupBy = "day" | "week" | "month";
+
+export type AnalyticsLeaderboardSort = "revenue" | "dealsWon" | "openPipeline";
+
+export type Department = "SALES" | "MARKETING" | "MANAGEMENT" | "OTHER";
+
+export interface MoneyAmount {
+  amount: string | null;
+  currency: string;
+  mixed: boolean;
+  byCurrency: Array<{ currency: string; amount: string }>;
+}
+
+export interface TrendMetric {
+  percent: number | null;
+  hasComparison: boolean;
+}
+
+export interface WinRateMetric {
+  value: number;
+  hasData: boolean;
+  won: number;
+  lost: number;
+}
+
+export interface FollowUpMetric {
+  open: number;
+  overdue: number;
+  dueToday: number;
+}
+
+export interface AnalyticsPeriod {
+  from: string;
+  to: string;
+  exclusiveTo: string;
+  timeZone: string;
+}
+
+export interface AnalyticsActivity {
+  id: string;
+  type: ActivityType;
+  content: string | null;
+  occurredAt: string;
+  author: { id: string; fullName: string };
+  deal: { id: string; name: string } | null;
+  company: { id: string; name: string } | null;
+  contact: { id: string; firstName: string; lastName: string } | null;
+  metadata: unknown;
+}
+
+export interface AnalyticsOverview {
+  period: AnalyticsPeriod;
+  previousPeriod: AnalyticsPeriod;
+  metrics: {
+    revenue: MoneyAmount & { trend: TrendMetric };
+    openDeals: number;
+    leads: number;
+    winRate: WinRateMetric & { trend: TrendMetric };
+    pipelineValue: MoneyAmount;
+    weightedPipelineValue: MoneyAmount;
+    followUps: FollowUpMetric;
+  };
+  recentActivity: AnalyticsActivity[];
+}
+
+export interface AnalyticsPipelineStage {
+  stageId: string;
+  pipelineId: string;
+  name: string;
+  key: string | null;
+  position: number;
+  isWon: boolean;
+  isLost: boolean;
+  dealCount: number;
+  amount: string | null;
+  weightedAmount: string | null;
+  currency: string;
+  mixed: boolean;
+  byCurrency: Array<{ currency: string; amount: string; weightedAmount: string }>;
+}
+
+export interface AnalyticsPipeline {
+  period: AnalyticsPeriod;
+  pipeline: { id: string; name: string } | null;
+  stages: AnalyticsPipelineStage[];
+}
+
+export interface AnalyticsSeriesPoint {
+  period: string;
+  amount: string;
+  byCurrency: Array<{ currency: string; amount: string }>;
+}
+
+export interface AnalyticsRevenue {
+  period: AnalyticsPeriod;
+  currency: string;
+  mixed: boolean;
+  total: string | null;
+  groupBy: AnalyticsGroupBy;
+  series: AnalyticsSeriesPoint[];
+}
+
+export interface AnalyticsWinRatePoint {
+  period: string;
+  won: number;
+  lost: number;
+  winRate: number;
+  hasData: boolean;
+}
+
+export interface AnalyticsWinRate {
+  period: AnalyticsPeriod;
+  won: number;
+  lost: number;
+  winRate: number;
+  hasData: boolean;
+  groupBy: AnalyticsGroupBy;
+  series: AnalyticsWinRatePoint[];
+}
+
+export interface AnalyticsLeaderboardMember {
+  userId: string;
+  name: string;
+  dealsWon: number;
+  revenue: string | null;
+  openPipeline: string | null;
+  currency: string;
+  mixed: boolean;
+  revenueByCurrency: Array<{ currency: string; amount: string }>;
+  pipelineByCurrency: Array<{ currency: string; amount: string }>;
+}
+
+export interface AnalyticsLeaderboard {
+  period: AnalyticsPeriod;
+  sortBy: AnalyticsLeaderboardSort;
+  members: AnalyticsLeaderboardMember[];
+}
+
+export const SEARCH_QUERY_TYPES = ["all", "contacts", "companies", "deals", "activities"] as const;
+export type SearchQueryType = (typeof SEARCH_QUERY_TYPES)[number];
+
+export const SEARCH_RESULT_TYPES = ["contact", "company", "deal", "activity"] as const;
+export type SearchResultType = (typeof SEARCH_RESULT_TYPES)[number];
+
+export const SEARCH_DEFAULT_LIMIT = 20;
+export const SEARCH_MAX_LIMIT = 50;
+export const SEARCH_MAX_QUERY_LENGTH = 100;
+
+export interface GlobalSearchResult {
+  id: string;
+  type: SearchResultType;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  href: string;
+  relevance: number;
+  timestamp?: string;
+}
+
+export interface GlobalSearchGroupedResults {
+  contacts: GlobalSearchResult[];
+  companies: GlobalSearchResult[];
+  deals: GlobalSearchResult[];
+  activities: GlobalSearchResult[];
+}
+
+export interface GlobalSearchResponse {
+  query: string;
+  results: GlobalSearchGroupedResults;
+  total: number;
+}
+
+export type CheckoutType = "REDIRECT" | "EMBEDDED";
+
+export interface BillingPlanPublic {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  currency: string;
+  monthlyPrice: string;
+  yearlyPrice: string;
+  features: string[];
+}
+
+export interface BillingSubscription {
+  id: string;
+  organizationId: string;
+  provider: PaymentProvider;
+  status: SubscriptionStatus;
+  plan: BillingPlanPublic | null;
+  currency: string;
+  amount: string | null;
+  billingInterval: BillingInterval;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  renewsAt: string | null;
+  cancelAtPeriodEnd: boolean;
+  canceledAt: string | null;
+  trialStart: string | null;
+  trialEnd: string | null;
+}
+
+export interface BillingInvoice {
+  id: string;
+  organizationId: string;
+  subscriptionId: string | null;
+  provider: PaymentProvider;
+  invoiceNumber: string | null;
+  status: InvoiceStatus;
+  currency: string;
+  amount: string;
+  invoiceUrl: string | null;
+  pdfUrl: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  dueAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface CheckoutResponse {
+  provider: PaymentProvider;
+  checkoutType: CheckoutType;
+  checkoutUrl?: string;
+  sessionId?: string;
+  subscriptionId?: string;
+  publishableKey?: string;
+}

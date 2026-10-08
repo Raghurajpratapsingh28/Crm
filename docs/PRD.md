@@ -566,7 +566,7 @@ Turn the in-scope list into a trackable checklist with rough sizing:
 | Deals + Pipeline (kanban) | ⬜ | Contacts, Companies | ⬜ |
 | Tasks | ⬜ | Auth | ⬜ |
 | Activities/timeline | ⬜ | Contacts, Companies, Deals | ⬜ |
-| Dashboard | ⬜ | Deals, Activities | ⬜ |
+| Dashboard | ✅ | Deals, Activities | ⬜ |
 | Notifications (in-app) | ⬜ | Tasks, Deals, Go worker | ⬜ |
 | Billing (Razorpay + Stripe) | ⬜ | Auth, Org, Go worker | ⬜ |
 | Docker Compose + K8s manifests | ⬜ | API, worker, web | ⬜ |

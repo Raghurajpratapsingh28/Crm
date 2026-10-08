@@ -3,12 +3,28 @@ import { Router } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { requirePermission } from "../../middleware/permissions.js";
+import { rateLimit } from "../../middleware/rate-limit.js";
 import { requireTenant, tenantId, type TenantRequest } from "../../middleware/tenant.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { notFound, ok } from "../../utils/errors.js";
+import {
+  leaderboard,
+  overview,
+  pipeline,
+  revenue,
+  winRate,
+} from "./analytics.controller.js";
 
 export const analyticsRouter: Router = Router();
 analyticsRouter.use(requireAuth, requireTenant);
+analyticsRouter.use(
+  rateLimit({
+    name: "analytics",
+    windowMs: 60_000,
+    max: 60,
+    key: (req) => (req as TenantRequest).auth?.userId ?? req.ip ?? "anon",
+  }),
+);
 
 analyticsRouter.get(
   "/me",
@@ -38,5 +54,45 @@ analyticsRouter.get(
       prisma.task.count({ where: { organizationId } }),
     ]);
     res.json(ok({ scope: "team", deals, contacts, companies, tasks }));
+  }),
+);
+
+analyticsRouter.get(
+  "/overview",
+  requirePermission(PERMISSIONS.ANALYTICS_READ),
+  asyncHandler(async (req, res) => {
+    await overview(req as TenantRequest, res);
+  }),
+);
+
+analyticsRouter.get(
+  "/pipeline",
+  requirePermission(PERMISSIONS.ANALYTICS_READ),
+  asyncHandler(async (req, res) => {
+    await pipeline(req as TenantRequest, res);
+  }),
+);
+
+analyticsRouter.get(
+  "/revenue",
+  requirePermission(PERMISSIONS.ANALYTICS_READ),
+  asyncHandler(async (req, res) => {
+    await revenue(req as TenantRequest, res);
+  }),
+);
+
+analyticsRouter.get(
+  "/win-rate",
+  requirePermission(PERMISSIONS.ANALYTICS_READ),
+  asyncHandler(async (req, res) => {
+    await winRate(req as TenantRequest, res);
+  }),
+);
+
+analyticsRouter.get(
+  "/leaderboard",
+  requirePermission(PERMISSIONS.ANALYTICS_TEAM),
+  asyncHandler(async (req, res) => {
+    await leaderboard(req as TenantRequest, res);
   }),
 );

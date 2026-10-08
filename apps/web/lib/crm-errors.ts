@@ -23,6 +23,22 @@ const MESSAGES: Record<string, string> = {
   INVALID_TASK_RELATION: "The related company, contact, and deal do not match.",
   INVALID_DUE_DATE: "Enter a valid due date.",
   CROSS_TENANT_RELATION: "Related records must belong to this organization.",
+  INVALID_DATE_RANGE: "Choose a valid date range.",
+  INVALID_TEAM: "Choose a valid department.",
+  INVALID_PIPELINE: "That pipeline was not found.",
+  PIPELINE_NOT_FOUND: "That pipeline was not found.",
+  ANALYTICS_FORBIDDEN: "You do not have permission to view team analytics.",
+  BILLING_NOT_CONFIGURED: "Billing is not configured for this provider.",
+  PLAN_NOT_FOUND: "That plan was not found.",
+  PLAN_INACTIVE: "That plan is not available.",
+  SUBSCRIPTION_ALREADY_ACTIVE: "This organization already has an active subscription.",
+  SUBSCRIPTION_NOT_FOUND: "No subscription was found.",
+  PROVIDER_NOT_SUPPORTED: "Choose Stripe or Razorpay.",
+  CHECKOUT_CREATION_FAILED: "Unable to start checkout. Try again.",
+  PAYMENT_PROVIDER_ERROR: "The payment provider could not complete that request.",
+  INVOICE_NOT_FOUND: "That invoice was not found.",
+  CANNOT_CANCEL_SUBSCRIPTION: "This subscription cannot be canceled.",
+  CANNOT_REACTIVATE_SUBSCRIPTION: "This provider cannot reverse a scheduled cancellation.",
 };
 
 export function crmErrorMessage(code?: string, fallback?: string) {

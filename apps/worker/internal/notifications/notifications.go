@@ -23,7 +23,13 @@ var knownTypes = map[string]struct{}{
 	"PAYMENT_RECEIVED":      {},
 	"TEAM_MEMBER_JOINED":    {},
 	"MEMBER_ROLE_CHANGED":   {},
-	"MEMBER_STATUS_CHANGED": {},
+	"MEMBER_STATUS_CHANGED":    {},
+	"SUBSCRIPTION_ACTIVATED":   {},
+	"SUBSCRIPTION_RENEWED":     {},
+	"SUBSCRIPTION_CANCELED":    {},
+	"SUBSCRIPTION_PAST_DUE":    {},
+	"PAYMENT_FAILED":           {},
+	"INVOICE_AVAILABLE":        {},
 }
 
 type Handler struct{ DB *sql.DB }
@@ -132,6 +138,20 @@ func Content(notifType string, raw json.RawMessage) Copy {
 		return Copy{Title: "Deal won", Message: fmt.Sprintf("%q was marked as won.", name), EntityType: "DEAL", EntityID: dealID}
 	case "DEAL_LOST":
 		return Copy{Title: "Deal lost", Message: fmt.Sprintf("%q was marked as lost.", name), EntityType: "DEAL", EntityID: dealID}
+	case "SUBSCRIPTION_ACTIVATED":
+		return Copy{Title: "Subscription active", Message: fmt.Sprintf("%s is now active.", name), EntityType: "BILLING"}
+	case "SUBSCRIPTION_RENEWED":
+		return Copy{Title: "Subscription renewed", Message: fmt.Sprintf("%s renewed successfully.", name), EntityType: "BILLING"}
+	case "SUBSCRIPTION_CANCELED":
+		return Copy{Title: "Subscription canceled", Message: fmt.Sprintf("%s was canceled.", name), EntityType: "BILLING"}
+	case "SUBSCRIPTION_PAST_DUE":
+		return Copy{Title: "Payment issue", Message: "We could not collect the latest subscription payment.", EntityType: "BILLING"}
+	case "PAYMENT_FAILED":
+		return Copy{Title: "Payment failed", Message: "A subscription payment failed. Update the payment method to keep access.", EntityType: "BILLING"}
+	case "INVOICE_AVAILABLE":
+		return Copy{Title: "Invoice available", Message: "A new invoice is ready on the billing page.", EntityType: "BILLING"}
+	case "PAYMENT_RECEIVED":
+		return Copy{Title: "Payment received", Message: "A subscription payment was received.", EntityType: "BILLING"}
 	case "DEAL_STAGE_CHANGED":
 		fromStage := stringField(payload, "fromStage")
 		toStage := stringField(payload, "toStage")

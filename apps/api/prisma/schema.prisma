@@ -85,6 +85,12 @@ enum NotificationType {
   TEAM_MEMBER_JOINED
   MEMBER_ROLE_CHANGED
   MEMBER_STATUS_CHANGED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_CANCELED
+  SUBSCRIPTION_PAST_DUE
+  PAYMENT_FAILED
+  INVOICE_AVAILABLE
 }
 
 enum PaymentProvider {
@@ -94,9 +100,13 @@ enum PaymentProvider {
 
 enum SubscriptionStatus {
   INCOMPLETE
+  TRIALING
   ACTIVE
   PAST_DUE
   CANCELED
+  UNPAID
+  PAUSED
+  EXPIRED
 }
 
 enum InvoiceStatus {
@@ -105,6 +115,19 @@ enum InvoiceStatus {
   PAID
   VOID
   UNCOLLECTIBLE
+  FAILED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum PaymentEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
 }
 
 enum AuditAction {
@@ -117,7 +140,14 @@ enum AuditAction {
   PIPELINE_CHANGED
   BILLING_CHANGED
   BILLING_CHECKOUT_CREATED
+  SUBSCRIPTION_CREATED
   SUBSCRIPTION_UPDATED
+  SUBSCRIPTION_CANCELED
+  SUBSCRIPTION_REACTIVATED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  INVOICE_PAID
+  INVOICE_FAILED
   ORGANIZATION_UPDATED
   PERMISSION_CHANGED
   INVITATION_RESENT
@@ -206,12 +236,13 @@ model Organization {
   dealStageHistory DealStageHistory[]
   activities     Activity[]
   tasks          Task[]
-  notifications  Notification[]
-  subscription   Subscription?
-  invoices       Invoice[]
-  paymentEvents  PaymentEvent[]
-  auditLogs      AuditLog[]
-  jobs           Job[]
+  notifications    Notification[]
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+  paymentEvents    PaymentEvent[]
+  billingCheckouts BillingCheckout[]
+  auditLogs        AuditLog[]
+  jobs             Job[]
 
   @@map("organizations")
 }
@@ -411,6 +442,8 @@ model Deal {
   @@index([organizationId, companyId])
   @@index([organizationId, createdAt])
   @@index([organizationId, updatedAt])
+  @@index([organizationId, wonAt])
+  @@index([organizationId, lostAt])
   @@map("deals")
 }
 
@@ -493,6 +526,7 @@ model Task {
   @@index([organizationId, contactId])
   @@index([organizationId, companyId])
   @@index([organizationId, status])
+  @@index([organizationId, status, dueDate])
   @@index([status, dueDate])
   @@map("tasks")
 }
@@ -523,61 +557,142 @@ model Notification {
 
 // --- Billing ---
 
+/// Catalog of sellable plans. Provider price IDs are configuration, not client input.
+model BillingPlan {
+  id                   String   @id @default(uuid()) @db.Uuid
+  key                  String   @unique
+  name                 String
+  description          String?
+  active               Boolean  @default(true)
+  currency             String   @db.Char(3)
+  monthlyPrice         Decimal  @map("monthly_price") @db.Decimal(14, 2)
+  yearlyPrice          Decimal  @map("yearly_price") @db.Decimal(14, 2)
+  stripePriceIdMonth   String?  @map("stripe_price_id_month")
+  stripePriceIdYear    String?  @map("stripe_price_id_year")
+  razorpayPlanIdMonth  String?  @map("razorpay_plan_id_month")
+  razorpayPlanIdYear   String?  @map("razorpay_plan_id_year")
+  features             String[] @default([])
+  entitlement          Plan     @default(STARTER)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@index([active])
+  @@map("billing_plans")
+}
+
 model Subscription {
   id                     String             @id @default(uuid()) @db.Uuid
-  organizationId         String             @unique @map("organization_id") @db.Uuid
+  organizationId         String             @map("organization_id") @db.Uuid
+  planId                 String?            @map("plan_id") @db.Uuid
   provider               PaymentProvider
   providerCustomerId     String             @map("provider_customer_id")
   providerSubscriptionId String?            @map("provider_subscription_id")
   status                 SubscriptionStatus @default(INCOMPLETE)
   amount                 Decimal?           @db.Decimal(14, 2)
   currency               String             @default("USD") @db.Char(3)
+  billingInterval        BillingInterval    @default(MONTH) @map("billing_interval")
   currentPeriodStart     DateTime?          @map("current_period_start")
   currentPeriodEnd       DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd      Boolean            @default(false) @map("cancel_at_period_end")
+  canceledAt             DateTime?          @map("canceled_at")
+  trialStart             DateTime?          @map("trial_start")
+  trialEnd               DateTime?          @map("trial_end")
   createdAt              DateTime           @default(now()) @map("created_at")
   updatedAt              DateTime           @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         BillingPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  invoices     Invoice[]
+  paymentEvents PaymentEvent[]
 
+  @@unique([provider, providerSubscriptionId])
+  @@index([organizationId, status])
   @@index([provider, providerCustomerId])
+  @@index([status, currentPeriodEnd])
   @@map("subscriptions")
 }
 
 model Invoice {
   id                String          @id @default(uuid()) @db.Uuid
   organizationId    String          @map("organization_id") @db.Uuid
+  subscriptionId    String?         @map("subscription_id") @db.Uuid
   provider          PaymentProvider
   providerInvoiceId String          @map("provider_invoice_id")
+  invoiceNumber     String?         @map("invoice_number")
   amount            Decimal         @db.Decimal(14, 2)
   currency          String          @db.Char(3)
   status            InvoiceStatus
+  invoiceUrl        String?         @map("invoice_url")
+  pdfUrl            String?         @map("pdf_url")
+  periodStart       DateTime?       @map("period_start")
+  periodEnd         DateTime?       @map("period_end")
+  dueAt             DateTime?       @map("due_at")
+  paidAt            DateTime?       @map("paid_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  paymentEvents PaymentEvent[]
 
   @@unique([provider, providerInvoiceId])
   @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([subscriptionId])
   @@map("invoices")
 }
 
 /// Provider webhooks. Unique (provider, provider_event_id) makes delivery idempotent.
 model PaymentEvent {
-  id              String          @id @default(uuid()) @db.Uuid
-  organizationId  String          @map("organization_id") @db.Uuid
+  id              String             @id @default(uuid()) @db.Uuid
+  organizationId  String?            @map("organization_id") @db.Uuid
+  subscriptionId  String?            @map("subscription_id") @db.Uuid
+  invoiceId       String?            @map("invoice_id") @db.Uuid
   provider        PaymentProvider
-  providerEventId String          @map("provider_event_id")
-  eventType       String          @map("event_type")
+  providerEventId String             @map("provider_event_id")
+  eventType       String             @map("event_type")
   payload         Json
-  processedAt     DateTime?       @map("processed_at")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  payloadHash     String?            @map("payload_hash")
+  status          PaymentEventStatus @default(RECEIVED)
+  processedAt     DateTime?          @map("processed_at")
+  failedAt        DateTime?          @map("failed_at")
+  attempts        Int                @default(0)
+  lastError       String?            @map("last_error")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@unique([provider, providerEventId])
   @@index([organizationId, createdAt])
+  @@index([subscriptionId])
+  @@index([status, createdAt])
   @@map("payment_events")
+}
+
+model BillingCheckout {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  idempotencyKey  String          @map("idempotency_key")
+  provider        PaymentProvider
+  planId          String          @map("plan_id") @db.Uuid
+  billingInterval BillingInterval @map("billing_interval")
+  status          String          @default("CREATED")
+  checkoutUrl     String?         @map("checkout_url")
+  sessionId       String?         @map("session_id")
+  response        Json
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@map("billing_checkouts")
 }
 
 // --- Platform ---

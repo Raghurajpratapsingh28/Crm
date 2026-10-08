@@ -30,6 +30,10 @@ function TasksList() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (params.get("new") === "1") setOpen(true);
+  }, [params]);
+
   const query = useMemo(
     () => ({
       search: params.get("search") ?? "",
@@ -147,7 +151,20 @@ function TasksList() {
           onPage={(page) => update({ page: String(page) })}
         />
       </div>
-      <ConfirmDialog open={open} title="Add task" cancelLabel="Close" onClose={() => setOpen(false)}>
+      <ConfirmDialog
+        open={open}
+        title="Add task"
+        cancelLabel="Close"
+        onClose={() => {
+          setOpen(false);
+          if (params.get("new")) {
+            const search = new URLSearchParams(params.toString());
+            search.delete("new");
+            const suffix = search.toString();
+            router.replace(suffix ? `/tasks?${suffix}` : "/tasks");
+          }
+        }}
+      >
         {token && user ? (
           <TaskForm
             token={token}

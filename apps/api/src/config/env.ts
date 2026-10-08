@@ -17,6 +17,12 @@ const envSchema = z.object({
   INVITATION_TTL_DAYS: z.coerce.number().int().positive().default(7),
   INVITATION_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
   TASK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
+  STRIPE_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional().default(""),
+  RAZORPAY_KEY_ID: z.string().optional().default(""),
+  RAZORPAY_KEY_SECRET: z.string().optional().default(""),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),
 });
 
 function parseEnv() {
@@ -44,7 +50,16 @@ export const env = {
   invitationTtlDays: parsed.INVITATION_TTL_DAYS,
   invitationResendCooldownSeconds: parsed.INVITATION_RESEND_COOLDOWN_SECONDS,
   taskReminderHours: parsed.TASK_REMINDER_HOURS,
+  stripeSecretKey: parsed.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,
+  stripePublishableKey: parsed.STRIPE_PUBLISHABLE_KEY,
+  razorpayKeyId: parsed.RAZORPAY_KEY_ID,
+  razorpayKeySecret: parsed.RAZORPAY_KEY_SECRET,
+  razorpayWebhookSecret: parsed.RAZORPAY_WEBHOOK_SECRET,
 };
 
+export const stripeEnabled = Boolean(env.stripeSecretKey && env.stripeWebhookSecret);
+export const razorpayEnabled = Boolean(env.razorpayKeyId && env.razorpayKeySecret && env.razorpayWebhookSecret);
+
 export const isDev = env.nodeEnv !== "production";
-export const isTest = env.nodeEnv === "test";
+export const isTest = env.nodeEnv === "test" || Boolean(process.env.VITEST);

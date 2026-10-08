@@ -77,8 +77,10 @@ Defined in `@crm/types` `JobType` and `apps/worker/internal/jobs`. Adding a job 
 | `email.invite` | Invitation email |
 | `email.receipt` / `email.follow_up` | Reserved email |
 | `notification.fanout` | In-app notification |
-| `payments.reconcile` / `payments.dunning` | Billing |
-| `analytics.rollup` / `deals.flag_stale` | Reserved |
+| `payments.event` | Apply stored payment snapshot |
+| `payments.reconcile` / `payments.dunning` | Reconcile / failed payment |
+| `payments.subscription` / `payments.invoice` | Live provider fetch |
+| `analytics.rollup` / `deals.flag_stale` | Reserved (dashboard uses live SQL, not rollups) |
 | `tasks.remind` | Reminder/overdue sweep |
 
 ## Retention

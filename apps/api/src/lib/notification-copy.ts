@@ -1,4 +1,4 @@
-export type NotificationEntityType = "TASK" | "DEAL" | "CONTACT" | "COMPANY" | "INVITATION";
+export type NotificationEntityType = "TASK" | "DEAL" | "CONTACT" | "COMPANY" | "INVITATION" | "BILLING";
 
 export function notificationContent(
   type: string,
@@ -46,6 +46,20 @@ export function notificationContent(
         entityType: null,
         entityId: null,
       };
+    case "SUBSCRIPTION_ACTIVATED":
+      return { title: "Subscription active", message: `${name} is now active.`, entityType: "BILLING", entityId: null };
+    case "SUBSCRIPTION_RENEWED":
+      return { title: "Subscription renewed", message: `${name} renewed successfully.`, entityType: "BILLING", entityId: null };
+    case "SUBSCRIPTION_CANCELED":
+      return { title: "Subscription canceled", message: `${name} was canceled.`, entityType: "BILLING", entityId: null };
+    case "SUBSCRIPTION_PAST_DUE":
+      return { title: "Payment issue", message: "We could not collect the latest subscription payment.", entityType: "BILLING", entityId: null };
+    case "PAYMENT_FAILED":
+      return { title: "Payment failed", message: "A subscription payment failed. Update the payment method to keep access.", entityType: "BILLING", entityId: null };
+    case "INVOICE_AVAILABLE":
+      return { title: "Invoice available", message: "A new invoice is ready on the billing page.", entityType: "BILLING", entityId: null };
+    case "PAYMENT_RECEIVED":
+      return { title: "Payment received", message: "A subscription payment was received.", entityType: "BILLING", entityId: null };
     default:
       return { title: "Notification", message: name, entityType: dealId ? "DEAL" : taskId ? "TASK" : contactId ? "CONTACT" : companyId ? "COMPANY" : null, entityId: dealId ?? taskId ?? contactId ?? companyId };
   }
@@ -62,6 +76,7 @@ export function notificationHref(input: {
   if (type === "DEAL" && id) return `/deals/${id}`;
   if (type === "CONTACT" && id) return `/contacts/${id}`;
   if (type === "COMPANY" && id) return `/companies/${id}`;
+  if (type === "BILLING") return "/billing";
   const payload = input.payload;
   if (payload?.taskId) return `/tasks/${payload.taskId}`;
   if (payload?.dealId) return `/deals/${payload.dealId}`;

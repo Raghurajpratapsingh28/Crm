@@ -78,7 +78,7 @@ export async function listActivities(actor: Actor, query: Record<string, unknown
           },
         }
       : {}),
-    ...(filters.search ? { OR: activitySearchWhere(filters.search) } : {}),
+    ...(filters.search ? { AND: [{ OR: activitySearchWhere(filters.search) }] } : {}),
   };
 
   const [total, items] = await prisma.$transaction([

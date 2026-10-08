@@ -102,28 +102,29 @@ Job type names are shared between `@crm/types` (`JobType`) and `apps/worker/inte
 
 ## Payments
 
-One org has at most one active provider subscription. India / INR → Razorpay. International cards → Stripe. Both write `subscriptions`, `invoices`, and `webhook_events`.
+Organization billing. Provider adapters live under `apps/api/src/lib/payments`. Web and CRM modules never import Stripe/Razorpay SDKs. Docs: `docs/BILLING.md`, `docs/STRIPE.md`, `docs/RAZORPAY.md`, `docs/WEBHOOKS.md`.
+
+One org has at most one **open** provider subscription (partial unique index). India / INR can use Razorpay; international cards Stripe. Both write `subscriptions`, `invoices`, and `payment_events`.
 
 ```mermaid
 sequenceDiagram
   participant Admin
   participant Web
   participant API
-  participant Provider as Razorpay or Stripe
+  participant Provider as Stripe or Razorpay
   participant Worker
 
   Admin->>Web: choose provider + plan
   Web->>API: POST /billing/checkout
-  API-->>Web: checkout session
+  API-->>Web: checkout URL
   Admin->>Provider: pay
-  Provider->>API: POST /webhooks/razorpay or /stripe
-  API->>API: verify signature, upsert webhook_events
-  API->>API: enqueue payments.reconcile
-  Worker->>API: claim job
-  Worker->>Worker: mark subscription ACTIVE / PAST_DUE
+  Provider->>API: POST /webhooks/stripe or /razorpay
+  API->>API: verify signature, insert payment_events
+  API->>API: enqueue payments.event
+  Worker->>Worker: apply snapshot, notify
 ```
 
-Webhook routes are unauthenticated but **signature-verified**. Checkout routes are `ADMIN` only.
+Webhook routes are unauthenticated but **signature-verified** with the raw body. Checkout routes are `ADMIN` only. A checkout redirect is not proof of payment.
 
 ## Deals, pipeline, and Kanban
 
@@ -151,6 +152,17 @@ Activities record what happened. Tasks record what needs to happen. They share c
 | Web | `apps/web/components/followups/*`, `components/notifications/*` | Timeline, task cards, notification bell/page |
 
 Upcoming reminders use `TASK_REMINDER:{taskId}:{due ISO}`. Daily overdue notices use `TASK_OVERDUE:{taskId}:{YYYY-MM-DD}`. The reminder window is `TASK_REMINDER_HOURS` (default 24). See [docs/ACTIVITIES.md](./docs/ACTIVITIES.md), [docs/TASKS.md](./docs/TASKS.md), [docs/FOLLOW_UPS.md](./docs/FOLLOW_UPS.md).
+
+## Dashboard and analytics
+
+The UI never aggregates CRM lists. Express runs tenant-scoped SQL (`COUNT`/`SUM`/`GROUP BY`) and returns small JSON. Organization id comes from membership middleware. MEMBER `analytics.read` is own-record only; `analytics.team` gates the leaderboard and department filter.
+
+| Layer | Location | Responsibility |
+|---|---|---|
+| API | `apps/api/src/modules/analytics` | Overview, pipeline, revenue, win-rate, leaderboard; date bounds in org timezone |
+| Web | `apps/web/app/(app)/dashboard`, `analytics`, `components/analytics/*` | KPI cards, CSS charts, URL filters |
+
+See [docs/ANALYTICS.md](./docs/ANALYTICS.md) and [docs/DASHBOARD.md](./docs/DASHBOARD.md). `analytics.rollup` remains a reserved job type; this milestone does not materialize rollup tables.
 
 ## Monorepo
 

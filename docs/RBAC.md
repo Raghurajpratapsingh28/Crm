@@ -39,7 +39,7 @@ JWT → user → ACTIVE membership → role → in-memory permission set → own
 | tasks.create | ✓ | ✓ | ✓ |
 | tasks.update | ✓ | ✓ | own |
 | tasks.delete | ✓ | ✓ | ✗ |
-| analytics.read | ✓ | ✓ | ✗ |
+| analytics.read | ✓ | ✓ | own |
 | analytics.team | ✓ | ✓ | ✗ |
 | notifications.read | ✓ | ✓ | own |
 | billing.read | ✓ | ✗ | ✗ |
@@ -49,7 +49,7 @@ JWT → user → ACTIVE membership → role → in-memory permission set → own
 ### Decisions vs the original table
 
 - **MANAGER has `users.read`.** The detailed MANAGER list grants it so managers can see the roster. They still cannot invite, change roles, or deactivate. The Team nav item stays ADMIN-only (`users.invite`).
-- **MEMBER does not get `analytics.read`.** Personal analytics remain unused until a later product decision. Team analytics stay ADMIN/MANAGER only.
+- **MEMBER has `analytics.read`.** Personal / own-record dashboard metrics are in scope. Queries are still owner-scoped; org-wide leaderboard stays `analytics.team` (ADMIN/MANAGER).
 
 ## Ownership
 

@@ -1,8 +1,2 @@
-/** Razorpay client wrapper. Keep secret keys here — never in the Next.js bundle. */
-export function createRazorpayOrder(_input: {
-  amountPaise: number;
-  currency: "INR";
-  receipt: string;
-}) {
-  throw new Error("Razorpay is not configured");
-}
+/** Server-only Razorpay adapter. Never import this from a Next.js client component. */
+export { RazorpayPaymentProvider } from "./payments/razorpay-provider.js";
